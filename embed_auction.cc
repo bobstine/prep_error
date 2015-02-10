@@ -20,9 +20,9 @@
 	       ...
 */
 
-#include "../../utils/read_utils.h"
+#include "read_utils.h"
 #include "simple_vocabulary.h"
-#include "../eigen_dictionary.h"
+#include "simple_eigen_dict.h"
 
 #include <getopt.h>
 #include <cmath>       // nan
@@ -86,10 +86,10 @@ int main(int argc, char** argv)
 	    << " --eigen_dim=" << nEigenDim << " --output_dir=" << outputDir << std::endl;
   
   // read vocabulary
-  SimpleVocabulary vocabulary = make_simple_vocabulary(vocabFileName);
+  SimpleVocabulary vocabulary =  make_simple_vocabulary(vocabFileName);
 
   // build eigen dictionary
-  EigenDictionary eigenDictionary = make_eigen_dictionary(eigenFileName, nEigenDim, vocabulary);
+  SimpleEigenDictionary eigenDictionary = make_simple_eigen_dictionary(eigenFileName, nEigenDim, vocabulary);
   compare_dictionary_to_vocabulary(eigenDictionary, vocabulary);
 
   // process each bundle of eigen coordinates; use header line to name bundles

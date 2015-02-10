@@ -56,8 +56,8 @@ prep_events.txt: ~/data/joel/$(raw_data_file)
 all_tags.txt : prep_events.txt Makefile
 	rm -f tag_count.txt all_tags.txt
 	wc -l $<
-	/usr/local/bin/sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
-	/usr/local/bin/sed -e 's/^[ 0-9]*//' tag_count.txt | tail -n +2  > $@
+	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
+	sed -e 's/^[ 0-9]*//' tag_count.txt | tail -n +2  > $@
 
 convert: convert.o
 	$(GCC) $^ $(LDLIBS) -o  $@
@@ -99,20 +99,21 @@ outDir = $(inDir)/$(word0)_$(word1)
 
 .PHONY: doit
 
-$(outDir): recode_data $(inDir)
+$(outDir): recode_data # $(inDir)
 	rm -rf $(outDir); mkdir $(outDir)
 	sed "3d" $(inDir)/index.sh > $(outDir)/X.sh
 	chmod +x $(outDir)/X.sh
 	./recode_data --input_dir=$(inDir) --output_dir=$(outDir) --word0=$(word0) --word1=$(word1)
-	cat $(outDir)/n_obs | ./random_indicator --header --choose 0.8 > $(outDir)/cv_indicator
+	cat $(outDir)/n_obs | ../tools/random_indicator --header --choose 0.8 > $(outDir)/cv_indicator
 
 doit: $(outDir)
 
 run_auction: # $(outDir)
-	# rm -rf $(outDir)/X  #  build manually while debugging
+	# rm -rf $(outDir)/X  #  build manually while debugging... this part is not running so just build X manually
 	# mkfifo $(outDir)/X 
 	# cat ./$(outDir)/X.sh > $(outDir)/X &
-	./auction -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 100 -a 2 -p 3 -k 10 -c 0
+	# mkdir -p auction_run
+	../auctions/auction -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 100 -a 2 -p 3 -k 10 -c 0
 
 
 ###########################################################################
