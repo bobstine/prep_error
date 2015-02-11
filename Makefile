@@ -38,14 +38,18 @@ all: auction_data
 #
 ###########################################################################
 
-nlines = 25000
+nlines = 500
 nEigenDim = 15
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
 #	sed -e 's/.*DY //' -e "s/#[-#A-Za-z0-9_?,=!;:\`\_\.\'$$]* / /g" -e 's/ $$//' $< | tr ' ' '\n' | sort | uniq > tag_count.txt
 #       Also set the -e -r options when run convert
-raw_data_file = nyt-eng.prepfeats.txt.gz
+
+raw_data_file = nyt-eng.prepfeats.gz
+#	This file has a cleaner parse in format varname#word and POS info is moved to separate columns
+#	       remove the prep     delete all past #
+#	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
 
 prep_events.txt: ~/data/joel/$(raw_data_file)
 	echo Building base file 'prep_events.txt' from $(nlines) sentences.
@@ -58,6 +62,7 @@ all_tags.txt : prep_events.txt Makefile
 	wc -l $<
 	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
 	sed -e 's/^[ 0-9]*//' tag_count.txt | tail -n +2  > $@
+	echo " --- Must edit the file all_tags.txt to obtain a subset of tags to use. --- "
 
 convert: convert.o
 	$(GCC) $^ $(LDLIBS) -o  $@
@@ -66,7 +71,7 @@ rectangle_data.txt: prep_events.txt tags.txt convert
 	./convert --tag_file=tags.txt < prep_events.txt > $@
 	head $@
 
-vocabulary.txt: rectangle_data.txt Makefile   # wipe out header line at start, blank at end
+vocabulary.txt: rectangle_data.txt Makefile   # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
 	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
 
 embed: embed.o
@@ -82,9 +87,6 @@ recode_data: recode_data.o
 reversed_eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
 	gunzip -c $< | tac > $@
-
-embedded_data.txt: rectangle_data.txt vocabulary.txt reversed_eigenwords.en embed
-	./embed --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt < rectangle_data.txt > $@
 
 auction_data: rectangle_data.txt vocabulary.txt reversed_eigenwords.en embed_auction
 	rm -rf $@
