@@ -20,8 +20,7 @@ level_3 =
 
 cleanup:
 	rm -f prep_events.txt tag_count.txt rectangle_data.txt
-	rm -f vocabulary.txt embedded_data.txt
-	rm -f reversed_eigenwords.en 
+	rm -f vocabulary.txt embedded_data.txt 	# reversed_eigenwords.en 
 	rm -rf auction_data
 
 .PHONY: all
@@ -38,8 +37,8 @@ all: auction_data
 #
 ###########################################################################
 
-nlines = 500
-nEigenDim = 15
+nlines = 200000
+nEigenDim =  15
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
@@ -106,16 +105,16 @@ $(outDir): recode_data # $(inDir)
 	sed "3d" $(inDir)/index.sh > $(outDir)/X.sh
 	chmod +x $(outDir)/X.sh
 	./recode_data --input_dir=$(inDir) --output_dir=$(outDir) --word0=$(word0) --word1=$(word1)
-	cat $(outDir)/n_obs | ../tools/random_indicator --header --choose 0.8 > $(outDir)/cv_indicator
+	cat $(outDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(outDir)/cv_indicator
 
 doit: $(outDir)
 
 run_auction: # $(outDir)
-	# rm -rf $(outDir)/X  #  build manually while debugging... this part is not running so just build X manually
+	# rm -rf $(outDir)/X  #  build manually [./X.sh > X in in_to] while debugging... this part is not running so just build X manually
 	# mkfifo $(outDir)/X 
 	# cat ./$(outDir)/X.sh > $(outDir)/X &
 	# mkdir -p auction_run
-	../auctions/auction -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 100 -a 2 -p 3 -k 10 -c 0
+	../../auctions/auction -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 250 -a 2 -p 3 --calibration_gap=10 --debug=2 --output_x=40
 
 
 ###########################################################################

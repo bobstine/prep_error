@@ -220,7 +220,7 @@ void
 write_raw_field(std::string fieldName, std::vector<std::string> const& data,
 		std::ofstream& , std::string )
 {
-  std::clog << "write_raw_field(" <<fieldName<< " for data of size " << data.size() << " is NOT YET IMPLEMENTED!!! \n";
+  std::clog << "write_raw_field(" <<fieldName<< ") for data of size " << data.size() << "cases is NOT YET IMPLEMENTED!!! \n";
 }
 
 
