@@ -23,9 +23,12 @@ cleanup:
 	rm -f vocabulary.txt embedded_data.txt 	# reversed_eigenwords.en 
 	rm -rf auction_data
 
-.PHONY: all
+.PHONY: all test
 
 all: auction_data
+
+testhome:
+	echo $(HOME)
 
 
 ###########################################################################
