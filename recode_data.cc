@@ -70,7 +70,8 @@ int main(int argc, char** argv)
 
   std::clog << "recode_data --input_dir=" << inputDataDir << " --output_dir=" << outputDataDir
 	    << " --word0=" << word0 << " --word1=" << word1 << std::endl;
-
+  if(word0==std::string(""))
+    std::clog << tag << "Model identifies word `" << word1 <<"' vs all other words.\n";
   
   // selector records which cases match word0 or word1
   std::vector<bool> selector = write_binary_response(word0, word1, inputDataDir, outputDataDir);

@@ -96,12 +96,13 @@ auction_data: rectangle_data.txt vocabulary.txt reversed_eigenwords.en embed_auc
 	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt -o $@ < rectangle_data.txt
 	chmod +x $@/index.sh
 
-word0  = in
+# blank word word0 defaults to all other words for baseline
+word0  = 
 word1  = to
 inDir  = auction_data
 outDir = $(inDir)/$(word0)_$(word1)
 
-.PHONY: doit
+.PHONY: doit run_auction
 
 $(outDir): recode_data # $(inDir)
 	rm -rf $(outDir); mkdir $(outDir)
@@ -112,12 +113,14 @@ $(outDir): recode_data # $(inDir)
 
 doit: $(outDir)
 
+theAuction = ../../auctions/auction
+
 run_auction: # $(outDir)
 	# rm -rf $(outDir)/X  #  build manually [./X.sh > X in in_to] while debugging... this part is not running so just build X manually
 	# mkfifo $(outDir)/X 
 	# cat ./$(outDir)/X.sh > $(outDir)/X &
 	# mkdir -p auction_run
-	../../auctions/auction -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 250 -a 2 -p 3 --calibration_gap=10 --debug=2 --output_x=40
+	$(theAuction) -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 1000 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
 
 
 ###########################################################################
