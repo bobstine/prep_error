@@ -10,8 +10,7 @@
        around   look     the   IN   [blank]    look
 
   Output: embeds explanatory features into eigenwords in streaming layout
-          wanted by auction
-
+          wanted by auction.  
 	      response
 	      cv_indicator
 	      eigen_stream_1

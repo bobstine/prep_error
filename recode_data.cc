@@ -1,8 +1,15 @@
 /*
-  Converts the base data directory into a new 'analysis' directory that has a
-  binary response as well as subsets the data to match cases used in the binary
-  response.
+  Converts the base data directory produced by running embed_auction into a new
+  'analysis' subdirectory that has a  binary response as well as subsets the data
+  to match cases used in the binary response.  Choice of cases are either
+	      word pair (as in binary choice problem): set word0 and word1
+	      one word vs all others                 : set word1 (rest coded 0)
+	      one word vs subset of others           : set wordlist
+  In the case of one word vs subset of others (multinomial classification), builds
+  k binary response variables, one for each word vs the others in the list
 
+  Note:  The response file creates a variable stream, so is prefixed with n.
+  
 */
 
 #include <dirent.h>
@@ -25,10 +32,18 @@ const bool verbose = true;
 
 const std::string tag = "RCDD: ";
 
-/////
+///// first is for two word binomial comparison, second for the multinomial case
 
 std::vector<bool>
 write_binary_response(std::string word0, std::string word1, std::string inputDir, std::string outputDir);
+
+std::vector<bool>
+write_binary_responses( std::set<std::string> const& responseWords  , std::string inputDir, std::string outputDir);
+
+void
+write_response(std::string word, std::string attributes, std::vector<std::string> const& words, std::string outputDir);
+
+/////
 
 std::vector<std::string>
 files_in_directory (std::string dir);
@@ -49,7 +64,8 @@ std::ostream& operator<< (std::ostream& os, std::vector<T> vec)   // /t separate
 
 void
 parse_arguments(int argc, char** argv,
-		std::string& inputDataDir, std::string& word0, std::string& word1,
+		std::string& inputDataDir,
+		std::string& word0, std::string& word1, std::string& wordListFileName,
 		std::string& outputDataDir);
 
 /////   
@@ -59,22 +75,48 @@ int main(int argc, char** argv)
   using std::string;
 
   // defaults
-  string inputDataDir  ("input_data_dir/");
-  string word0         ("");           // all but word1
-  string word1         ("word");
-  string outputDataDir ("output_data_dir/");
+  string inputDataDir     ("input_data_dir/");
+  string word0            ("");                 // all but word1
+  string word1            ("word");
+  string wordListFileName ("");                 // ignore word0 and word1 if set
+  string outputDataDir    ("output_data_dir/");
   
-  parse_arguments(argc, argv, inputDataDir, word0, word1, outputDataDir);
+  parse_arguments(argc, argv, inputDataDir, word0, word1, wordListFileName, outputDataDir);
   if ( inputDataDir[ inputDataDir.size()-1] != '/')  inputDataDir += '/';
   if (outputDataDir[outputDataDir.size()-1] != '/') outputDataDir += '/';
 
-  std::clog << "recode_data --input_dir=" << inputDataDir << " --output_dir=" << outputDataDir
-	    << " --word0=" << word0 << " --word1=" << word1 << std::endl;
-  if(word0==std::string(""))
-    std::clog << tag << "Model identifies word `" << word1 <<"' vs all other words.\n";
+  bool binaryCase = wordListFileName.empty();
+  std::clog << "recode_data --input_dir=" << inputDataDir << " --output_dir=" << outputDataDir;
+  if (binaryCase)
+    std::clog << " --word0=" << word0 << " --word1=" << word1 << std::endl;
+  else
+    std::clog << " --word_list=" << wordListFileName << std::endl;
   
+  // build set of eligible words if present
+  std::set<string> responseWords;      
+  if(binaryCase)
+  { if(word0==std::string(""))
+      std::clog << tag << "Model identifies word `" << word1 <<"' vs all other words.\n";
+  }
+  else
+  { std::clog << tag << "Reading word list from file `" << wordListFileName << "'  ";
+    std::ifstream wordStream(wordListFileName);
+    while(wordStream.good())
+    { string word;
+      wordStream >> word;
+      word = trim(word);
+      if(word.empty()) break;
+      std::clog << word << " ";
+      responseWords.insert(word);
+    }
+    std::clog << "(" << responseWords.size() << " prepositions)\n";
+  }
   // selector records which cases match word0 or word1
-  std::vector<bool> selector = write_binary_response(word0, word1, inputDataDir, outputDataDir);
+  std::vector<bool> selector;
+  if(binaryCase)
+    selector = write_binary_response(word0, word1, inputDataDir, outputDataDir);
+  else
+    selector = write_binary_responses(responseWords, inputDataDir, outputDataDir);
   int nObsSelected = std::accumulate(selector.begin(), selector.end(), 0, [](int tot, bool x) { if(x) return tot+1; else return tot; });
   if (verbose) std::clog << tag << "Writing " << nObsSelected << " cases for word pair " << word0 << "-" << word1
 			 << " from input dir " << inputDataDir << std::endl;
@@ -114,6 +156,68 @@ int main(int argc, char** argv)
 
 //       converts intput text into 0/1, selecting only appropriate cases identified in selector
 //       writes n_obs on first line followed by 3 line auction format.
+
+std::vector<bool>
+write_binary_responses(std::set<std::string> const& responseWords, std::string inputDir, std::string outputDir)
+{
+  using std::string;
+  
+  std::vector<bool> selector;
+  std::ifstream input (inputDir + "Y");
+  if (!input.good())
+  { std::cerr << "ERROR: Cannot open input file " << inputDir << " Y text to convert to binary.\n";
+    return selector;
+  }
+  // check that output directory exists
+  {
+    std::ofstream output (outputDir + "Y");
+    if (!output.good())
+    { std::cerr << "ERROR: Cannot open output file " << outputDir << " for writing binary responses.\n";
+      return selector;
+    }
+  }
+  string yName;
+  {
+    string line;
+    std::getline(input, line);             // names
+    std::istringstream ss(line);
+    ss >> yName;
+  }
+  string attributes;
+  std::getline(input,attributes);          // attributes
+  string word;
+  std::vector<string> foundWords;
+  while(input.good() && (input >> word))
+  { std::set<string>::const_iterator it = responseWords.find(word);
+    if (it != responseWords.end())
+    { foundWords.push_back(word);
+      selector.push_back(true);
+    }
+    else selector.push_back(false);
+  }
+  // write output response files: 4 lines, beginning with n_obs (acts as data stream with just one var)
+  for(string w : responseWords)
+    write_response(w, attributes, foundWords, outputDir);
+  return selector;
+}
+
+void
+write_response(std::string word, std::string attributes, std::vector<std::string> const& words, std::string outputDir)
+{
+  std::string name = "Y_"+word;
+  std::ofstream output (outputDir + name);
+  output << words.size() << std::endl;   // file starts with length
+  output << name << std::endl;           // then name, attributes, data
+  output << attributes << " word0 * word1 " << word << " name " << name << std::endl;
+  for(std::string w : words)
+  { if (w == word)
+      output << "1 ";
+    else
+      output << "0 ";
+  }
+  output << std::endl;
+}
+
 
 std::vector<bool>
 write_binary_response(std::string word0, std::string word1, std::string inputDir, std::string outputDir)
@@ -233,25 +337,27 @@ files_in_directory (std::string dir)
 //     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments       
 void
 parse_arguments(int argc, char** argv,
-		std::string& inputDir, std::string& word0, std::string& word1, std::string& outputDir)
+		std::string& inputDir, std::string& word0, std::string& word1, std::string& wordListFileName, std::string& outputDir)
 {
   static struct option long_options[] = {
     {"input_dir",  required_argument, 0, 'i'},
     {"output_dir", required_argument, 0, 'o'},
+    {"word_list",  required_argument, 0, 'l'},
     {"word1",      required_argument, 0, 'w'},
     {"word0",      required_argument, 0, 'z'},
     {0, 0, 0, 0}                             // terminator
   };
   int key;
   int option_index = 0;
-  while (-1 !=(key = getopt_long (argc, argv, "i:o:w:z:", long_options, &option_index))) // colon means has argument
+  while (-1 !=(key = getopt_long (argc, argv, "i:o:l:w:z:", long_options, &option_index))) // colon means has argument
   {
     switch (key)
     {
-    case 'i' :  { inputDir  = optarg; break;      }
-    case 'o' :  { outputDir = optarg; break;      }
-    case 'w' :  { word1     = optarg; break;      }
-    case 'z' :  { word0     = optarg; break;      }
+    case 'i' :  { inputDir         = optarg; break;      }
+    case 'o' :  { outputDir        = optarg; break;      }
+    case 'l' :  { wordListFileName = optarg; break;      }
+    case 'w' :  { word1            = optarg; break;      }
+    case 'z' :  { word0            = optarg; break;      }
       //    case 'n' :      { 	nRounds = read_utils::lexical_cast<int>(optarg);	break;      }
     default:
       {

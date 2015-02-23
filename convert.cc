@@ -12,6 +12,7 @@
        into     hurry_VBD    the_ATI   ,      ,        classroom_NN  NN       classroom  NA
        around   look_VBD     the_ATI   IN     for      [blank]       NA        NA     look_VBD
 
+  Writes a summary of the number of times each prep is found.
 */
 
 #include <getopt.h>
@@ -62,18 +63,22 @@ int main(int argc, char** argv)
   { std::cerr << "ERROR: Tag file `" << tagFileName << "' not found; terminating.\n";
     return 0;
   }
-  std::clog << "--- Read " << tags.size() << " tags from file '" << tagFileName << "'.\n";
+  std::clog << "CONVERT: Read " << tags.size() << " tags from file '" << tagFileName << "'.\n";
 
   // write tags as column headers
   std::cout << "Y";
   for(string tag:tags) std::cout << "\t" << tag;
   std::cout << std::endl;
 
+  // map counts frequency of each prep
+  std::map<string,size_t> prepCounts;
+  
   // process each line to std output
   while (!std::cin.eof())
   { string thePrep;
     string dlTag;
     std::cin >> thePrep;
+    ++prepCounts[thePrep];
     if (removeDY) std::cin>> dlTag;
     string theLine;
     std::getline(std::cin, theLine);
@@ -113,6 +118,15 @@ int main(int argc, char** argv)
       std::cout << std::endl;
     }
   }
+  // sort keys by value
+  std::clog << "CONVERT: Counts of the found prepositions:" << std::endl;
+  std::vector<std::pair<string, size_t>> pairs;
+  for (auto p : prepCounts)
+    pairs.push_back(p);
+  std::sort(pairs.begin(), pairs.end(),
+	    [ ](std::pair<string, size_t> const& a, std::pair<string, size_t> const& b) { return a.second > b.second; }  );
+  for(auto p : pairs)
+    std::clog << p.first << "  " << p.second << std::endl;
 }
 
 void

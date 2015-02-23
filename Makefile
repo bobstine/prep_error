@@ -19,16 +19,13 @@ level_2 =
 level_3 =
 
 cleanup:
-	rm -f prep_events.txt tag_count.txt rectangle_data.txt
+	rm -f prep_events.txt rectangle_data.txt
 	rm -f vocabulary.txt embedded_data.txt 	# reversed_eigenwords.en 
-	rm -rf auction_data
+	rm -rf auction_data auction_run auction_mult
 
 .PHONY: all test
 
-all: auction_data
-
-testhome:
-	echo $(HOME)
+all: auction_mult
 
 
 ###########################################################################
@@ -40,8 +37,9 @@ testhome:
 #
 ###########################################################################
 
-nlines = 200000
-nEigenDim =  15
+# the file has 720860, but whatever...  I like round numbers
+nlines = 720000
+nEigenDim =  30
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
@@ -96,24 +94,23 @@ auction_data: rectangle_data.txt vocabulary.txt reversed_eigenwords.en embed_auc
 	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt -o $@ < rectangle_data.txt
 	chmod +x $@/index.sh
 
-# blank word word0 defaults to all other words for baseline
-word0  = 
-word1  = to
-inDir  = auction_data
-outDir = $(inDir)/$(word0)_$(word1)
-
-.PHONY: doit run_auction
-
-$(outDir): recode_data # $(inDir)
-	rm -rf $(outDir); mkdir $(outDir)
-	sed "3d" $(inDir)/index.sh > $(outDir)/X.sh
-	chmod +x $(outDir)/X.sh
-	./recode_data --input_dir=$(inDir) --output_dir=$(outDir) --word0=$(word0) --word1=$(word1)
-	cat $(outDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(outDir)/cv_indicator
-
-doit: $(outDir)
+# blank word word0 defaults to all other words for baseline; multinomial case require prepositions.txt (pick words to use)
 
 theAuction = ../../auctions/auction
+
+word0   = 
+word1   = to
+inDir   = auction_data
+biDir   = $(inDir)/$(word0)_$(word1)
+
+.PHONY: run_auction run_mult_auction multinomial binomial
+
+binomial: recode_data # $(inDir)
+	rm -rf $(biDir)/; mkdir $(biDir)
+	sed "3d" $(inDir)/index.sh > $(biDir)/X.sh
+	chmod +x $(biDir)/X.sh
+	./recode_data --input_dir=$(inDir) --output_dir=$(biDir) --word0=$(word0) --word1=$(word1)
+	cat $(biDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(biDir)/cv_indicator
 
 run_auction: # $(outDir)
 	# rm -rf $(outDir)/X  #  build manually [./X.sh > X in in_to] while debugging... this part is not running so just build X manually
@@ -122,6 +119,32 @@ run_auction: # $(outDir)
 	# mkdir -p auction_run
 	$(theAuction) -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 1000 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
 
+###  multinomial version
+
+multDir = $(inDir)/multinomial
+
+prepositions = of in for to on with that at as from by
+
+multinomial: recode_data prepositions.txt auction_data
+	rm -rf $(multDir); mkdir $(multDir)
+	sed "3d" $(inDir)/index.sh > $(multDir)/X.sh
+	chmod +x $(multDir)/X.sh
+	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions.txt
+	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(multDir)/cv_indicator
+
+multAuctionPath = auction_mult/
+multAuctionRounds = 200
+
+$(multDir)/X : $(multDir)/X.sh 
+	rm -rf $@
+	cd $(multDir); ./X.sh > X
+
+$(multAuctionPath)%: recode_data prepositions.txt $(multDir)/X
+	mkdir -p $(multAuctionPath)
+	mkdir -p $@
+	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
+
+run_mult_auction: $(addprefix $(multAuctionPath),$(prepositions))
 
 ###########################################################################
 
