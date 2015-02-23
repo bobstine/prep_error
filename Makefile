@@ -38,8 +38,8 @@ all: auction_mult
 ###########################################################################
 
 # the file has 720860, but whatever...  I like round numbers
-nlines = 720000
-nEigenDim =  30
+nlines = 400000 
+nEigenDim = 30
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
@@ -133,7 +133,7 @@ multinomial: recode_data prepositions.txt auction_data
 	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(multDir)/cv_indicator
 
 multAuctionPath = auction_mult/
-multAuctionRounds = 200
+multAuctionRounds = 250
 
 $(multDir)/X : $(multDir)/X.sh 
 	rm -rf $@

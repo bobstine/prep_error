@@ -27,6 +27,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include <string>
 #include <vector>
@@ -215,19 +216,59 @@ int main(int argc, char** argv)
 
 //     write_raw_field     write_raw_field     write_raw_field     write_raw_field     write_raw_field
 
+template<class T>
+void
+write_simple_var(std::string varName, std::string attributes, std::vector<T> const& data,
+		std::ofstream& shellStream, std::string outputDirectory)
+{
+  const size_t n = data.size();
+  shellStream << "cat " << varName << std::endl;
+  std::ofstream file(outputDirectory + varName);
+  file << varName    << std::endl;
+  file << attributes << std::endl;
+  for(size_t i=0; i<n-1; ++i) file << data[i] << "\t";  // no tab at end
+  file << data[n-1];
+}
+
 void
 write_raw_field(std::string fieldName, std::vector<std::string> const& data,
-		std::ofstream& , std::string )
+		std::ofstream& shellStream, std::string outputDirectory)
 {
-  std::clog << "write_raw_field(" <<fieldName<< ") for data of size " << data.size() << "cases is NOT YET IMPLEMENTED!!! \n";
-}
+  using std::string;
+  const size_t n = data.size();
+  size_t nMissing = 0;
+  double sum = 0.0;
+  std::vector<size_t> missing (n);
+  std::vector<float>  numbers (n);
+  for(size_t i=0; i<n; ++i)
+  { if(data[i]=="NA")
+    { missing[i] = 1;
+      ++nMissing;
+      numbers[i] = 0;
+    }
+    else
+    { missing[i]=0;
+      sum += (double) numbers[i];
+      std::istringstream(data[i]) >> numbers[i];
+    }
+  }
+  if (0<nMissing)
+  { float mean = float( (sum/(double)(n-nMissing)) );
+    for(size_t i=0; i<n; ++i)
+      if(1==missing[i]) numbers[i] = mean;
+  }
+  const string attributes = "role x stream main";
+  write_simple_var(fieldName, attributes, numbers, shellStream, outputDirectory);
+  if (0<nMissing)
+    write_simple_var(fieldName+"_missing", attributes+" parent "+fieldName, missing, shellStream, outputDirectory);
+}		      
 
 
 //     write_categorical_bundle     write_categorical_bundle     write_categorical_bundle     write_categorical_bundle
 
 void
 write_categorical_bundle(std::string fieldName, std::vector<std::string> const& data,
-			std::ofstream& shellStream, std::string outputDirectory)
+			 std::ofstream& shellStream, std::string outputDirectory)
 {
   using std::string;
   // identify the categories present
@@ -293,7 +334,7 @@ write_bundle(std::string bundleName, std::string streamName, std::string attribu
   size_t n = coor.size();
   size_t nEigenDim = coor[0].size();
   assert (nEigenDim == labels.size());
-  if (0 < nMissing)  // write missing indicator
+  if (0 < nMissing)  // write missing indicator for the bundle
   { std::string varName = bundleName + "_" + "Missing";
     shellFile << "cat " << varName << std::endl;
     std::ofstream file(outputDir + varName);

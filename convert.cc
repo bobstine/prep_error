@@ -64,7 +64,12 @@ int main(int argc, char** argv)
     return 0;
   }
   std::clog << "CONVERT: Read " << tags.size() << " tags from file '" << tagFileName << "'.\n";
-
+  if (verbose)
+  { std::clog << "CONVERT: Tags are ";
+     for(string tag:tags) std::clog << tag << " ";
+    std::clog << std::endl;
+  }
+  
   // write tags as column headers
   std::cout << "Y";
   for(string tag:tags) std::cout << "\t" << tag;

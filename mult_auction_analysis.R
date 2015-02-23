@@ -37,3 +37,8 @@ truth    <- apply( Y ,1,which.max)
 estimate <- apply(Fit,1,which.max)
 
 table(truth==estimate,CV[,1])
+
+tab <- as.matrix(table(truth, estimate))
+colnames(tab) <- rownames(tab) <- prepositions
+
+chisq.test(as.table(tab))
