@@ -14,7 +14,7 @@ USES = utils text
 
 OPT = -O3 -std=c++11
 
-level_1 = convert.o embed.o embed_auction.o recode_data.o
+level_1 = convert.o embed_auction.o recode_data.o    embed.o 
 level_2 =
 level_3 =
 
@@ -38,7 +38,7 @@ all: auction_mult
 ###########################################################################
 
 # the file has 720860, but whatever...  I like round numbers
-nlines = 400000 
+nlines = 200000 
 nEigenDim = 30
 
 # raw_data_file = 7m-4d-Aug30-events.gz
@@ -94,16 +94,18 @@ auction_data: rectangle_data.txt vocabulary.txt reversed_eigenwords.en embed_auc
 	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt -o $@ < rectangle_data.txt
 	chmod +x $@/index.sh
 
-# blank word word0 defaults to all other words for baseline; multinomial case require prepositions.txt (pick words to use)
-
 theAuction = ../../auctions/auction
+
+inDir   = auction_data
+
+.PHONY: run_auction run_mult_auction multinomial binomial
+
+# --- binomial version
+#      blank word word0 defaults to all other words for baseline; multinomial case require prepositions.txt (pick words to use)
 
 word0   = 
 word1   = to
-inDir   = auction_data
 biDir   = $(inDir)/$(word0)_$(word1)
-
-.PHONY: run_auction run_mult_auction multinomial binomial
 
 binomial: recode_data # $(inDir)
 	rm -rf $(biDir)/; mkdir $(biDir)
@@ -119,11 +121,11 @@ run_auction: # $(outDir)
 	# mkdir -p auction_run
 	$(theAuction) -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 1000 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
 
-###  multinomial version
-
-multDir = $(inDir)/multinomial
+# --- multinomial version
 
 prepositions = of in for to on with that at as from by
+
+multDir = $(inDir)/multinomial
 
 multinomial: recode_data prepositions.txt auction_data
 	rm -rf $(multDir); mkdir $(multDir)
@@ -132,8 +134,8 @@ multinomial: recode_data prepositions.txt auction_data
 	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions.txt
 	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(multDir)/cv_indicator
 
-multAuctionPath = auction_mult/
-multAuctionRounds = 250
+multAuctionPath = auction_run_mult/
+multAuctionRounds = 1000
 
 $(multDir)/X : $(multDir)/X.sh 
 	rm -rf $@
@@ -142,9 +144,9 @@ $(multDir)/X : $(multDir)/X.sh
 $(multAuctionPath)%: recode_data prepositions.txt $(multDir)/X
 	mkdir -p $(multAuctionPath)
 	mkdir -p $@
-	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
+	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=3 --output_x=0 --output_path=$@
 
-run_mult_auction: $(addprefix $(multAuctionPath),$(prepositions))
+run_mult_auction: $(multAuctionPath)to #  $(addprefix $(multAuctionPath),$(prepositions))
 
 ###########################################################################
 

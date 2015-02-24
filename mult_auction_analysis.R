@@ -1,5 +1,25 @@
 ## --- use the link to auction_progress.R to see a plot of the history
 
+
+## --- Embed some signal in an explanatory feature to see if found
+
+resp <- readLines("~/C/projects/prep_error/auction_data/multinomial/Y_to")
+y <- as.numeric(  strsplit(resp[4],' ')[[1]]  )  # only want first part of list result
+
+pred <- readLines("~/C/projects/prep_error/auction_data/multinomial/GP_ew2")
+x <- as.numeric( strsplit(pred[3],'\t')[[1]] )
+
+length(x) == length(y)
+
+mean(x); sd(x); fivenum(x)
+
+##     add in enough relative to variation/range of x and write back
+
+x <- x + 0.75*(2*y-1)
+
+pred[3] <- paste(x, collapse="\t")
+writeLines(pred, "~/C/projects/prep_error/auction_data/multinomial/GP_ew2")
+
 ## --- Read ground truth
 ##     beware in and for are reserved in R so pad all with leading underscore
 
