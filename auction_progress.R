@@ -1,1 +1,1 @@
-/home/bob/R/auction_progress.R
+/Users/rstine/R/auction_progress.R

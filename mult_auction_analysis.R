@@ -1,3 +1,5 @@
+## --- use the link to auction_progress.R to see a plot of the history
+
 ## --- Read ground truth
 ##     beware in and for are reserved in R so pad all with leading underscore
 
@@ -42,3 +44,26 @@ tab <- as.matrix(table(truth, estimate))
 colnames(tab) <- rownames(tab) <- prepositions
 
 chisq.test(as.table(tab))
+
+
+## --- Check calibration of chosen model (need to move over data from hilbert)
+
+Data <- read.delim("~/C/projects/prep_error/auction_run_mult/to/model_data.txt")
+dim(Data)
+names(Data)
+
+test <- !(train <- Data[,1]=="est")
+
+##     training
+use <- test
+
+x <- Data[use,"Fit"]; y <- Data[use,"Y_to"]
+i <- order(x); x <- x[i]; y <- y[i]
+
+plot(y ~ x)
+abline(a=0,b=1,col="gray")
+lines(smooth.spline(x,y,df=7), col='green')
+
+##     play with some cutoffs
+
+table(y,0.25 < x)
