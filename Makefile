@@ -38,7 +38,7 @@ all: auction_mult
 ###########################################################################
 
 # the file has 720860, but whatever...  I like round numbers
-nlines = 200000 
+nlines = 400000 
 nEigenDim = 30
 
 # raw_data_file = 7m-4d-Aug30-events.gz
@@ -51,10 +51,12 @@ raw_data_file = nyt-eng.prepfeats.gz
 #	       remove the prep     delete all past #
 #	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
 
+# --- prep_events	leading sentences from Joel
 prep_events.txt: ~/data/joel/$(raw_data_file)
 	echo Building base file 'prep_events.txt' from $(nlines) sentences.
 	gunzip -c $< | head -n $(nlines) > $@
 
+# --- all_tags, tags	stream identifiers, eg POS and WORD.  Only fields tagged as words get embedded
 # delete everything *except* tags ...
 # sed (removes leading prep) and (removes everything after a #); edit 'all_tags.txt' by hand to select specific tags to leave in tags.txt
 all_tags.txt : prep_events.txt Makefile
@@ -67,11 +69,12 @@ all_tags.txt : prep_events.txt Makefile
 convert: convert.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
-rectangle_data.txt: prep_events.txt tags.txt convert
+# --- rectangle data	data frame layout of words as a fixed n x p matrix of tokens and values
+rectangle_data.tsv: prep_events.txt tags.txt convert
 	./convert --tag_file=tags.txt < prep_events.txt > $@
 	head $@
 
-vocabulary.txt: rectangle_data.txt Makefile   # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
+vocabulary.txt: rectangle_data.tsv Makefile   # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
 	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
 
 embed: embed.o
@@ -88,10 +91,11 @@ reversed_eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
 	gunzip -c $< | tac > $@
 
-auction_data: rectangle_data.txt vocabulary.txt reversed_eigenwords.en embed_auction
+# --- auction data	streaming file layout of data from rectangle, with words embedded
+auction_data: rectangle_data.tsv vocabulary.txt reversed_eigenwords.en embed_auction
 	rm -rf $@
 	mkdir auction_data
-	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt -o $@ < rectangle_data.txt
+	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
 theAuction = ../../auctions/auction
@@ -122,8 +126,11 @@ run_auction: # $(outDir)
 	$(theAuction) -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 1000 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
 
 # --- multinomial version
+#	recode_data puts several Ys with common selection indicator (which may force balanced estimation) into multDir
+#	prepositions = of in for to on with that at as from by
 
-prepositions = of in for to on with that at as from by
+# only big 6
+prepositions = of in for to on with
 
 multDir = $(inDir)/multinomial
 
@@ -131,8 +138,13 @@ multinomial: recode_data prepositions.txt auction_data
 	rm -rf $(multDir); mkdir $(multDir)
 	sed "3d" $(inDir)/index.sh > $(multDir)/X.sh
 	chmod +x $(multDir)/X.sh
-	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions.txt
-	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(multDir)/cv_indicator
+	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
+
+doit: $(multDir)/cv_indicator
+
+#	recode data builds Y_all.txt for multinomials
+$(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
+	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=10000 --balance=$< > $@
 
 multAuctionPath = auction_run_mult/
 multAuctionRounds = 1000
@@ -141,12 +153,12 @@ $(multDir)/X : $(multDir)/X.sh
 	rm -rf $@
 	cd $(multDir); ./X.sh > X
 
-$(multAuctionPath)%: recode_data prepositions.txt $(multDir)/X
+$(multAuctionPath)%: recode_data prepositions.txt $(multDir)/X $(multDir)/cv_indicator
 	mkdir -p $(multAuctionPath)
 	mkdir -p $@
-	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=3 --output_x=0 --output_path=$@
+	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
 
-run_mult_auction: $(multAuctionPath)to #  $(addprefix $(multAuctionPath),$(prepositions))
+run_mult_auction: $(addprefix $(multAuctionPath),$(prepositions))
 
 ###########################################################################
 

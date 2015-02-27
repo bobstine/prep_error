@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 #include <numeric>   // accumulate
 
 #include "string_trim.h"
@@ -73,7 +74,7 @@ parse_arguments(int argc, char** argv,
 int main(int argc, char** argv)
 {
   using std::string;
-
+ 
   // defaults
   string inputDataDir     ("input_data_dir/");
   string word0            ("");                 // all but word1
@@ -168,13 +169,10 @@ write_binary_responses(std::set<std::string> const& responseWords, std::string i
   { std::cerr << "ERROR: Cannot open input file " << inputDir << " Y text to convert to binary.\n";
     return selector;
   }
-  // check that output directory exists
-  {
-    std::ofstream output (outputDir + "Y");
-    if (!output.good())
-    { std::cerr << "ERROR: Cannot open output file " << outputDir << " for writing binary responses.\n";
-      return selector;
-    }
+  std::ofstream output (outputDir + "Y_all.txt");
+  if (!output.good())
+  { std::cerr << "ERROR: Cannot open output file " << outputDir << " for writing binary responses.\n";
+    return selector;
   }
   string yName;
   {
@@ -195,7 +193,18 @@ write_binary_responses(std::set<std::string> const& responseWords, std::string i
     }
     else selector.push_back(false);
   }
-  // write output response files: 4 lines, beginning with n_obs (acts as data stream with just one var)
+  // write the actual text of used responses to file
+  std::map<string, size_t> counts;
+  for(size_t i=0; i<foundWords.size()-1; ++i)
+  { ++counts[foundWords[i]];
+    output << foundWords[i] << " ";
+  }
+  ++counts[foundWords[foundWords.size()-1]];
+  output << foundWords[foundWords.size()-1] << std::endl;
+  std::clog << tag << "Counts of multinomial key words: ";
+  for(auto p : counts) std::clog << "{" << p.first << " " << p.second << "} ";
+  std::clog << std::endl;
+  // write binary response file for each selected word type: 4 lines, beginning with n_obs (acts as data stream with just one var)
   for(string w : responseWords)
     write_response(w, attributes, foundWords, outputDir);
   return selector;

@@ -6,11 +6,12 @@ embed
 embed_auction
 recode_data
 prep_events.txt
+prepositions.txt
 vocabulary.txt
 all_tags.txt
 tag_count.txt
 reversed_eigenwords.en
-rectangle_data.txt
+rectangle_data.tsv
 embedded_data.txt
 auction_data
 auction_run

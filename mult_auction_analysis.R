@@ -1,6 +1,76 @@
 ## --- use the link to auction_progress.R to see a plot of the history
 
 
+## --- Which words are being confused?
+
+##     y.all has the list of all prepositions
+y.all <- scan("~/C/projects/prep_error/auction_data/multinomial/Y_all.txt", what='char')
+
+##     cv is 0/1 indicator of which words went to estimation
+cv <- readLines("~/C/projects/prep_error/auction_data/multinomial/cv_indicator")
+cv <- as.numeric(  strsplit(cv[4],'\t')[[1]]  )  # only want first part of list result
+sum(cv)
+
+##     frequencies should match balancing frequency
+train <- which(cv==1)
+table( y.all[ train ] )
+
+##     get the fitted values from a model
+Data.of <- read.delim("~/C/projects/prep_error/auction_run_mult/of/model_data.txt")
+names(Data.of); dim(Data.of)
+
+##     check cases match between internal/external cv indicators
+n.est <- sum(Data.of[,"Role"]=="est")
+table(Data.of[1:n.est,"Y_of"], y.all[train])
+
+##     labeling of words; means of fit by word
+table(0.5 < Data.of[1:n.est,"Fit"], y.all[train])
+
+tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
+
+## --- join fits for all models ... just training
+prepositions <- c("of","in","for","to","on","with")
+n.train <- 60000
+Fits <- NULL
+for(i in 1:length(prepositions)) {
+    data <- read.delim(paste0("~/C/projects/prep_error/auction_run_mult/",prepositions[i],"/model_data.txt"))
+    Fits[[i]] <- data[1:n.train,"Fit"]
+}
+Fits <-  as.data.frame(Fits)
+names(Fits) <- paste0("fit_",prepositions)
+dim(Fits)
+
+train <- which(cv==1)
+Fits$y <- y.all[train]
+
+head(Fits)
+
+##     check that matches C++ sensitivity
+table(Fits$y=="of",0.5<Fits$fit_of)
+
+##     which prep gets largest probability
+choice <- apply(Fits[,1:length(prepositions)],1,which.max)
+tab <- table(Fits$y,choice)
+colnames(tab) <- prepositions
+
+tab <- tab[prepositions,]
+
+round(tab/10000,2)
+
+
+## --- Check the data used to fit auction models
+
+train <- which(cv==1)
+
+y.of <- readLines("~/C/projects/prep_error/auction_data/multinomial/Y_of")
+y.of <- as.numeric( strsplit(y.of[4],' ')[[1]] )
+
+sum(y.of[ train ])
+
+
+
+
+
 ## --- Embed some signal in an explanatory feature to see if found
 
 resp <- readLines("~/C/projects/prep_error/auction_data/multinomial/Y_to")
@@ -20,10 +90,12 @@ x <- x + 0.75*(2*y-1)
 pred[3] <- paste(x, collapse="\t")
 writeLines(pred, "~/C/projects/prep_error/auction_data/multinomial/GP_ew2")
 
+
+
 ## --- Read ground truth
 ##     beware in and for are reserved in R so pad all with leading underscore
 
-prepositions <- scan("~/C/projects/prep_error/prepositions.txt", what='char')
+prepositions <- scan("~/C/projects/prep_error/prepositions_6.txt", what='char')
 prepositions <- paste0("_",prepositions)
 
 Y <- NULL;
@@ -40,7 +112,7 @@ sum(Y)==nrow(Y)
 CV <- NULL; Fit <- NULL
 for(p in prepositions) {
     cat(p," ");
-    data <- read.delim(paste0("~/C/projects/prep_error/auction_mult/",substring(p,2),"/model_data.txt"))
+    data <- read.delim(paste0("~/C/projects/prep_error/auction_run_mult/",substring(p,2),"/model_data.txt"))
     CV[[p]] <- data[,1];
     Fit[[p]] <- data[,2]
 }
@@ -60,8 +132,10 @@ estimate <- apply(Fit,1,which.max)
 
 table(truth==estimate,CV[,1])
 
-tab <- as.matrix(table(truth, estimate))
+train <- which("est"==CV[,1])
+tab <- as.matrix(table(truth[train], estimate[train]))
 colnames(tab) <- rownames(tab) <- prepositions
+tab
 
 chisq.test(as.table(tab))
 
