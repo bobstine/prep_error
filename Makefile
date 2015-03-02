@@ -38,7 +38,7 @@ all: auction_mult
 ###########################################################################
 
 # the file has 720860, but whatever...  I like round numbers
-nlines = 400000 
+nlines = 720000 
 nEigenDim = 30
 
 # raw_data_file = 7m-4d-Aug30-events.gz
@@ -134,15 +134,13 @@ prepositions = of in for to on with
 
 multDir = $(inDir)/multinomial
 
+#	recode data builds Y_all.txt for multinomials; since target is phony, run *by hand*
 multinomial: recode_data prepositions.txt auction_data
 	rm -rf $(multDir); mkdir $(multDir)
 	sed "3d" $(inDir)/index.sh > $(multDir)/X.sh
 	chmod +x $(multDir)/X.sh
 	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
 
-doit: $(multDir)/cv_indicator
-
-#	recode data builds Y_all.txt for multinomials
 $(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
 	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=10000 --balance=$< > $@
 
