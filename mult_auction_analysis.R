@@ -1,13 +1,14 @@
 ## --- use the link to auction_progress.R to see a plot of the history
 
 
-## --- Which words are being confused?
+## --- Analysis of auction results for multinomial classification:
+##     Which words are being confused?
 
 ##     y.all has the list of all prepositions
-y.all <- scan("~/C/projects/prep_error/auction_data/multinomial/Y_all.txt", what='char')
+y.all <- scan("~/C/projects/prep_error/auction_run_mult/Y_all.txt", what='char')
 
 ##     cv is 0/1 indicator of which words went to estimation
-cv <- readLines("~/C/projects/prep_error/auction_data/multinomial/cv_indicator")
+cv <- readLines("~/C/projects/prep_error/auction_run_mult/cv_indicator")
 cv <- as.numeric(  strsplit(cv[4],'\t')[[1]]  )  # only want first part of list result
 sum(cv)
 
@@ -30,7 +31,7 @@ tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
 
 ## --- join fits for all models ... just training
 prepositions <- c("of","in","for","to","on","with")
-n.train <- 60000
+n.train <- 120000
 Fits <- NULL
 for(i in 1:length(prepositions)) {
     data <- read.delim(paste0("~/C/projects/prep_error/auction_run_mult/",prepositions[i],"/model_data.txt"))
@@ -45,6 +46,19 @@ Fits$y <- y.all[train]
 
 head(Fits)
 
+Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
+colnames(Y) <- prepositions
+
+
+##
+
+newProb <-  matrix(NA, nrow=nrow(Y), ncol=ncol(Y))
+for(i in 1:6) { newProb[,i] <-  fitted(lm(Y[,i] ~ Fits[,1] + Fits[,2] + Fits[,3] + Fits[,4] + Fits[,5] + Fits[,6])) }
+
+i <- 1
+regr <- lm(Y[,i] ~ Fits[,1] + Fits[,2] + Fits[,3] + Fits[,4] + Fits[,5] + Fits[,6])
+summary(regr)
+
 ##     check that matches C++ sensitivity
 table(Fits$y=="of",0.5<Fits$fit_of)
 
@@ -56,6 +70,8 @@ colnames(tab) <- prepositions
 tab <- tab[prepositions,]
 
 round(tab/10000,2)
+
+
 
 
 ## --- Check the data used to fit auction models
@@ -138,6 +154,8 @@ colnames(tab) <- rownames(tab) <- prepositions
 tab
 
 chisq.test(as.table(tab))
+
+
 
 
 ## --- Check calibration of chosen model (need to move over data from hilbert)

@@ -92,10 +92,11 @@ reversed_eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	gunzip -c $< | tac > $@
 
 # --- auction data	streaming file layout of data from rectangle, with words embedded
+#      decide here if want to downcase letters (Deans dictionary) or leave in mixed cases (Paramveer)
 auction_data: rectangle_data.tsv vocabulary.txt reversed_eigenwords.en embed_auction
 	rm -rf $@
 	mkdir auction_data
-	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt -o $@ < rectangle_data.tsv
+	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt --downcase -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
 theAuction = ../../auctions/auction
@@ -142,21 +143,23 @@ multinomial: recode_data prepositions.txt auction_data
 	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
 
 $(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
-	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=10000 --balance=$< > $@
+	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=20000 --balance=$< > $@
 
-multAuctionPath = auction_run_mult/
+resultsPath = auction_run_mult/
 multAuctionRounds = 1000
 
 $(multDir)/X : $(multDir)/X.sh 
 	rm -rf $@
 	cd $(multDir); ./X.sh > X
 
-$(multAuctionPath)%: recode_data prepositions.txt $(multDir)/X $(multDir)/cv_indicator
-	mkdir -p $(multAuctionPath)
+$(resultsPath)%: recode_data prepositions.txt $(multDir)/X $(multDir)/cv_indicator
+	mkdir -p $(resultsPath)
 	mkdir -p $@
 	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
 
-run_mult_auction: $(addprefix $(multAuctionPath),$(prepositions))
+run_mult_auction: $(addprefix $(resultsPath),$(prepositions))
+	cp $(multDir)/cv_indicator $(resultsPath)/cv_indicator
+	cp $(multDir)/Y_all.txt $(resultsPath)/Y_all.txt
 
 ###########################################################################
 

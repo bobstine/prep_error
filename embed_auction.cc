@@ -46,7 +46,7 @@ void
 write_categorical_bundle(std::string fieldName, std::vector<std::string> const& data, std::ofstream &shellStream, std::string outputDirectory);
 
 void
-write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, SimpleEigenDictionary const& eigenDictionary,
+write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, Text::SimpleEigenDictionary const& eigenDictionary,
 		       std::ofstream &shellStream, std::string outputDirectory);
 
 
@@ -88,7 +88,7 @@ bool found(Item x, std::vector<Item> const& c)
 void
 parse_arguments(int argc, char** argv,
 		std::string& vocabularyFileName,
-		std::string& eigenwordFileName, int& eigenwordDimension,
+		std::string& eigenwordFileName, int& eigenwordDimension, bool &downcase,
 		std::string& outputDirectory);
 
 
@@ -124,18 +124,20 @@ int main(int argc, char** argv)
   string eigenFileName ("eigenwords.test");
   int    nEigenDim     (0);                 // use all that are found
   string outputDir     ("data_dir/");
+  bool   downcase      (false);             // tokens
 
-  parse_arguments(argc, argv, vocabFileName, eigenFileName, nEigenDim, outputDir);
+  parse_arguments(argc, argv, vocabFileName, eigenFileName, nEigenDim, downcase, outputDir);
   if (outputDir[outputDir.size()-1]!='/') outputDir += "/";
   std::clog << "embed_auction --vocab_file=" << vocabFileName << " --eigen_file=" << eigenFileName
-	    << " --eigen_dim=" << nEigenDim << " --output_dir=" << outputDir << std::endl;
+	    << " --eigen_dim=" << nEigenDim << " --output_dir=" << outputDir;
+  if (downcase) std::clog << " --downcase\n";
   
   // read vocabulary
-  SimpleVocabulary vocabulary =  make_simple_vocabulary(vocabFileName);
+  Text::SimpleVocabulary vocabulary =  Text::make_simple_vocabulary(vocabFileName, downcase);
 
   // build eigen dictionary
-  SimpleEigenDictionary eigenDictionary = make_simple_eigen_dictionary(eigenFileName, nEigenDim, vocabulary);
-  compare_dictionary_to_vocabulary(eigenDictionary, vocabulary);
+  Text::SimpleEigenDictionary eigenDictionary = Text::make_simple_eigen_dictionary(eigenFileName, nEigenDim, vocabulary, downcase);
+  Text::compare_dictionary_to_vocabulary(eigenDictionary, vocabulary);
 
   // use header line to distinguish words to embed from categorical to encode
   string responseName;
@@ -296,7 +298,7 @@ write_categorical_bundle(std::string fieldName, std::vector<std::string> const& 
 
 //     write_eigenword_bundle     write_eigenword_bundle     write_eigenword_bundle     write_eigenword_bundle
 void
-write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, SimpleEigenDictionary const& eigenDictionary,
+write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, Text::SimpleEigenDictionary const& eigenDictionary,
 		       std::ofstream& shellStream, std::string outputDirectory)
 {
   using std::string;
@@ -375,9 +377,12 @@ write_bundle(std::string bundleName, std::string streamName, std::string attribu
 
 void
 parse_arguments(int argc, char** argv,
-		std::string& vocabFileName, std::string& eigenFileName, int& eigenDim, std::string& outputDir)
+		std::string& vocabFileName,
+		std::string& eigenFileName, int& eigenDim, bool& downcase,
+		std::string& outputDir)
 {
   static struct option long_options[] = {
+    {"downcase",   no_argument,       0, 'c'},
     {"eigen_dim",  required_argument, 0, 'd'},
     {"eigen_file", required_argument, 0, 'e'},
     {"output_dir", required_argument, 0, 'o'},
@@ -386,11 +391,12 @@ parse_arguments(int argc, char** argv,
   };
   int key;
   int option_index = 0;
-  while (-1 !=(key = getopt_long (argc, argv, "d:e:o:v:", long_options, &option_index))) // colon means has argument
+  while (-1 !=(key = getopt_long (argc, argv, "cd:e:o:v:", long_options, &option_index))) // colon means has argument
   {
     // std::cout << "Key " << char(key) << " to option " << long_options[option_index].name << " index=" << option_index << std::endl;
     switch (key)
     {
+    case 'c' :  { downcase = true;        break;      }
     case 'd' :  { eigenDim = read_utils::lexical_cast<int>(optarg); break; }
     case 'e' :  { eigenFileName = optarg; break;      }
     case 'o' :  { outputDir = optarg;     break;      }
