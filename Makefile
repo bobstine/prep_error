@@ -74,7 +74,7 @@ rectangle_data.tsv: prep_events.txt tags.txt convert
 	./convert --tag_file=tags.txt < prep_events.txt > $@
 	head $@
 
-vocabulary.txt: rectangle_data.tsv Makefile   # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
+vocabulary.txt: rectangle_data.tsv    # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
 	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
 
 embed: embed.o
@@ -91,12 +91,14 @@ reversed_eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
 	gunzip -c $< | tac > $@
 
+dean.ew = $(HOME)/data/text/eigenwords/output_200_PHC.txt
+
 # --- auction data	streaming file layout of data from rectangle, with words embedded
-#      decide here if want to downcase letters (Deans dictionary) or leave in mixed cases (Paramveer)
-auction_data: rectangle_data.tsv vocabulary.txt reversed_eigenwords.en embed_auction
+#      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
+auction_data: embed_auction rectangle_data.tsv vocabulary.txt # reversed_eigenwords.en
 	rm -rf $@
 	mkdir auction_data
-	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt --downcase -o $@ < rectangle_data.tsv
+	./embed_auction --eigen_file=$(dean.ew) --downcase --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
 theAuction = ../../auctions/auction

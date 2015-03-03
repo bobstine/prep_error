@@ -4,11 +4,13 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
+path <- "~/C/projects/prep_error/auction_results/720k_30_dean_ev_1000r_down/"
+
 ##     y.all has the list of all prepositions
-y.all <- scan("~/C/projects/prep_error/auction_run_mult/Y_all.txt", what='char')
+y.all <- scan(paste0(path,"Y_all.txt"), what='char')
 
 ##     cv is 0/1 indicator of which words went to estimation
-cv <- readLines("~/C/projects/prep_error/auction_run_mult/cv_indicator")
+cv <- readLines(paste0(path,"cv_indicator"))
 cv <- as.numeric(  strsplit(cv[4],'\t')[[1]]  )  # only want first part of list result
 sum(cv)
 
@@ -16,8 +18,8 @@ sum(cv)
 train <- which(cv==1)
 table( y.all[ train ] )
 
-##     get the fitted values from a model
-Data.of <- read.delim("~/C/projects/prep_error/auction_run_mult/of/model_data.txt")
+## --- one model: get the fitted values from a model
+Data.of <- read.delim(paste0(path,"of/model_data.txt"))
 names(Data.of); dim(Data.of)
 
 ##     check cases match between internal/external cv indicators
@@ -29,28 +31,37 @@ table(0.5 < Data.of[1:n.est,"Fit"], y.all[train])
 
 tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
 
+
 ## --- join fits for all models ... just training
 prepositions <- c("of","in","for","to","on","with")
 n.train <- 120000
 Fits <- NULL
 for(i in 1:length(prepositions)) {
-    data <- read.delim(paste0("~/C/projects/prep_error/auction_run_mult/",prepositions[i],"/model_data.txt"))
+    data <- read.delim(paste0(path,prepositions[i],"/model_data.txt"))
     Fits[[i]] <- data[1:n.train,"Fit"]
 }
 Fits <-  as.data.frame(Fits)
 names(Fits) <- paste0("fit_",prepositions)
 dim(Fits)
 
+##     check that matches C++ sensitivity
 train <- which(cv==1)
-Fits$y <- y.all[train]
 
-head(Fits)
+table(y.all[train]=="of",0.5<Fits$fit_of)
+
+##     which prep gets largest probability
+choice <- apply(Fits[,1:length(prepositions)],1,which.max)
+tab <- table(y.all[train],choice)
+colnames(tab) <- prepositions
+
+tab <- tab[prepositions,]
+
+round(tab/20000,2)
+
+## --- multivariate calibration exercise
 
 Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
 colnames(Y) <- prepositions
-
-
-##
 
 newProb <-  matrix(NA, nrow=nrow(Y), ncol=ncol(Y))
 for(i in 1:6) { newProb[,i] <-  fitted(lm(Y[,i] ~ Fits[,1] + Fits[,2] + Fits[,3] + Fits[,4] + Fits[,5] + Fits[,6])) }
@@ -59,26 +70,16 @@ i <- 1
 regr <- lm(Y[,i] ~ Fits[,1] + Fits[,2] + Fits[,3] + Fits[,4] + Fits[,5] + Fits[,6])
 summary(regr)
 
-##     check that matches C++ sensitivity
-table(Fits$y=="of",0.5<Fits$fit_of)
-
-##     which prep gets largest probability
-choice <- apply(Fits[,1:length(prepositions)],1,which.max)
-tab <- table(Fits$y,choice)
-colnames(tab) <- prepositions
-
-tab <- tab[prepositions,]
-
-round(tab/10000,2)
 
 
 
+## ------------------------------------------------  early test, debugging code  -------------------------------------
 
 ## --- Check the data used to fit auction models
 
 train <- which(cv==1)
 
-y.of <- readLines("~/C/projects/prep_error/auction_data/multinomial/Y_of")
+y.of <- readLines(paste0(path,"of"))
 y.of <- as.numeric( strsplit(y.of[4],' ')[[1]] )
 
 sum(y.of[ train ])
