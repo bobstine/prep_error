@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-path <- "~/C/projects/prep_error/auction_results/720k_30_dean_ev_1000r_down/"
+path <- "~/C/projects/prep_error/auction_results/720k_60_param_ev_10000r_mixed/"
 
 ##     y.all has the list of all prepositions
 y.all <- scan(paste0(path,"Y_all.txt"), what='char')
@@ -34,7 +34,7 @@ tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
 
 ## --- join fits for all models ... just training
 prepositions <- c("of","in","for","to","on","with")
-n.train <- 120000
+n.train <- length(train)
 Fits <- NULL
 for(i in 1:length(prepositions)) {
     data <- read.delim(paste0(path,prepositions[i],"/model_data.txt"))
@@ -45,31 +45,40 @@ names(Fits) <- paste0("fit_",prepositions)
 dim(Fits)
 
 ##     check that matches C++ sensitivity
-train <- which(cv==1)
-
 table(y.all[train]=="of",0.5<Fits$fit_of)
 
 ##     which prep gets largest probability
 choice <- apply(Fits[,1:length(prepositions)],1,which.max)
-tab <- table(y.all[train],choice)
-colnames(tab) <- prepositions
+Fits.tab <- table(y.all[train],choice)
+colnames(Fits.tab) <- prepositions
 
-tab <- tab[prepositions,]
+Fits.tab <- Fits.tab[prepositions,] # arrange rows
 
-round(tab/20000,2)
+round(Fits.tab/20000,2)
 
 ## --- multivariate calibration exercise
-
 Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
 colnames(Y) <- prepositions
 
-newProb <-  matrix(NA, nrow=nrow(Y), ncol=ncol(Y))
-for(i in 1:6) { newProb[,i] <-  fitted(lm(Y[,i] ~ Fits[,1] + Fits[,2] + Fits[,3] + Fits[,4] + Fits[,5] + Fits[,6])) }
+Fits <- as.matrix(Fits)
 
-i <- 1
-regr <- lm(Y[,i] ~ Fits[,1] + Fits[,2] + Fits[,3] + Fits[,4] + Fits[,5] + Fits[,6])
-summary(regr)
+##     example
+summary( regr <-  lm(Y[,1] ~ Fits) )
 
+##     all of them
+newFits <-  matrix(NA, nrow=nrow(Y), ncol=ncol(Y))
+for(i in 1:6) { newFits[,i] <-  fitted(lm(Y[,i] ~ Fits)) }
+
+##     which prep gets largest probability
+choice <- apply(newFits[,1:length(prepositions)],1,which.max)
+newFits.tab <- table(y.all[train],choice)
+colnames(newFits.tab) <- prepositions
+
+newFits.tab <- newFits.tab[prepositions,]
+
+round(newFits.tab/20000,2)
+
+save(Fits, newFits, Y, file="fits.Rdata")
 
 
 
@@ -77,7 +86,7 @@ summary(regr)
 
 ## --- Check the data used to fit auction models
 
-train <- which(cv==1)
+xtrain <- which(cv==1)
 
 y.of <- readLines(paste0(path,"of"))
 y.of <- as.numeric( strsplit(y.of[4],' ')[[1]] )

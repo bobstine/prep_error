@@ -1,3 +1,33 @@
+720000	60 dim	10000 rounds paramveer mixed-case (better still)
+
+         of   in  for   to   on with
+  of   0.75 0.06 0.07 0.03 0.04 0.05
+  in   0.07 0.61 0.08 0.07 0.09 0.09
+  for  0.09 0.08 0.53 0.09 0.08 0.13
+  to   0.05 0.08 0.10 0.58 0.08 0.11
+  on   0.06 0.08 0.09 0.08 0.60 0.10
+  with 0.05 0.06 0.10 0.08 0.07 0.63
+
+
+720000	60 dim	2000 rounds paramveer mixed-case  (better throughout)
+
+         of   in  for   to   on with
+  of   0.72 0.06 0.08 0.03 0.04 0.06
+  in   0.08 0.57 0.09 0.08 0.09 0.09
+  for  0.10 0.09 0.46 0.10 0.08 0.16
+  to   0.06 0.09 0.12 0.51 0.09 0.14
+  on   0.06 0.09 0.10 0.10 0.54 0.11
+  with 0.06 0.06 0.12 0.10 0.08 0.57
+
+720000	60 dim	1000 rounds paramveer mixed-case
+
+         of   in  for   to   on with
+  of   0.70 0.07 0.08 0.04 0.04 0.07
+  in   0.09 0.55 0.09 0.08 0.09 0.10
+  for  0.12 0.10 0.41 0.11 0.08 0.17
+  to   0.06 0.10 0.11 0.48 0.09 0.15
+  on   0.07 0.10 0.10 0.09 0.51 0.13
+  with 0.07 0.06 0.12 0.11 0.08 0.55
 
 720000	30 dim	1000 rounds paramveer mixed-case  (improves sensitivity)
 

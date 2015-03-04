@@ -130,7 +130,8 @@ int main(int argc, char** argv)
   if (outputDir[outputDir.size()-1]!='/') outputDir += "/";
   std::clog << "embed_auction --vocab_file=" << vocabFileName << " --eigen_file=" << eigenFileName
 	    << " --eigen_dim=" << nEigenDim << " --output_dir=" << outputDir;
-  if (downcase) std::clog << " --downcase\n";
+  if (downcase) std::clog << " --downcase";
+  std::clog << std::endl;
   
   // read vocabulary
   Text::SimpleVocabulary vocabulary =  Text::make_simple_vocabulary(vocabFileName, downcase);

@@ -39,7 +39,7 @@ all: auction_mult
 
 # the file has 720860, but whatever...  I like round numbers
 nlines = 720000 
-nEigenDim = 30
+nEigenDim = 60
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
@@ -94,11 +94,12 @@ reversed_eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 dean.ew = $(HOME)/data/text/eigenwords/output_200_PHC.txt
 
 # --- auction data	streaming file layout of data from rectangle, with words embedded
+#	./embed_auction --eigen_file=$(dean.ew) --downcase --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 #      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
-auction_data: embed_auction rectangle_data.tsv vocabulary.txt # reversed_eigenwords.en
+auction_data: embed_auction rectangle_data.tsv vocabulary.txt  reversed_eigenwords.en
 	rm -rf $@
 	mkdir auction_data
-	./embed_auction --eigen_file=$(dean.ew) --downcase --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
+	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
 theAuction = ../../auctions/auction
@@ -148,7 +149,7 @@ $(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
 	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=20000 --balance=$< > $@
 
 resultsPath = auction_run_mult/
-multAuctionRounds = 1000
+multAuctionRounds = 10000
 
 $(multDir)/X : $(multDir)/X.sh 
 	rm -rf $@
