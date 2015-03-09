@@ -14,8 +14,8 @@ reversed_eigenwords.en
 rectangle_data.tsv
 embedded_data.txt
 auction_data
-auction_results
+saved_results
 auction_run
-auction_run_mult
+auction_temp
 fits.Rdata
 	

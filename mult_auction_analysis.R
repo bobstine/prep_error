@@ -1,16 +1,21 @@
-## --- use the link to auction_progress.R to see a plot of the history
+## --- use auction_progress.R to plot the auction history
 
 
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-path <- "~/C/projects/prep_error/auction_results/720k_60_param_ev_10000r_mixed/"
+patha <- "~/C/projects/prep_error/auction_temp/720k_60_param_10000r_mixed/"
+pathb <- patha
+
+##     while running the path is as follows
+patha <- "~/C/projects/prep_error/auction_data/multinomial/"
+pathb <- "~/C/projects/prep_error/auction_temp/"
 
 ##     y.all has the list of all prepositions
-y.all <- scan(paste0(path,"Y_all.txt"), what='char')
+y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 
 ##     cv is 0/1 indicator of which words went to estimation
-cv <- readLines(paste0(path,"cv_indicator"))
+cv <- readLines(paste0(patha,"cv_indicator"))
 cv <- as.numeric(  strsplit(cv[4],'\t')[[1]]  )  # only want first part of list result
 sum(cv)
 
@@ -19,7 +24,7 @@ train <- which(cv==1)
 table( y.all[ train ] )
 
 ## --- one model: get the fitted values from a model
-Data.of <- read.delim(paste0(path,"of/model_data.txt"))
+Data.of <- read.delim(paste0(pathb,"of/model_data.txt"))
 names(Data.of); dim(Data.of)
 
 ##     check cases match between internal/external cv indicators
@@ -33,11 +38,11 @@ tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
 
 
 ## --- join fits for all models ... just training
-prepositions <- c("of","in","for","to","on","with")
+prepositions <- c("of","in","for") #  ,"to","on","with")
 n.train <- length(train)
 Fits <- NULL
 for(i in 1:length(prepositions)) {
-    data <- read.delim(paste0(path,prepositions[i],"/model_data.txt"))
+    data <- read.delim(paste0(pathb,prepositions[i],"/model_data.txt"))
     Fits[[i]] <- data[1:n.train,"Fit"]
 }
 Fits <-  as.data.frame(Fits)
@@ -54,7 +59,7 @@ colnames(Fits.tab) <- prepositions
 
 Fits.tab <- Fits.tab[prepositions,] # arrange rows
 
-round(Fits.tab/20000,2)
+round(Fits.tab/50000,2)
 
 ## --- multivariate calibration exercise
 Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
