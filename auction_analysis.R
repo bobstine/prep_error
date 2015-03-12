@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e60pr10k_mixed/"
+patha <- "~/C/projects/prep_error/saved_results/n1500_e60p_r10k_mixed/"
 pathb <- patha
 
 ##     while running the path is as follows
