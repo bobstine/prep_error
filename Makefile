@@ -37,9 +37,10 @@ all: auction_mult
 #
 ###########################################################################
 
-# the file has 720860, but whatever...  I like round numbers
-nlines = 1500000 
-nEigenDim = 60
+# nLines = n sentences, nExamples of each preposition
+nlines =  1500000 
+nExamples = 50000
+nEigenDim =   100
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
@@ -71,6 +72,7 @@ convert: convert.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
 # --- rectangle data	data frame layout of words as a fixed n x p matrix of tokens and values
+#                       long tail or weird things labeled as prep, as well as capitalization
 rectangle_data.tsv: prep_events.txt tags.txt convert
 	./convert --tag_file=tags.txt < prep_events.txt > $@
 	head $@
@@ -87,48 +89,69 @@ embed_auction: embed_auction.o
 recode_data: recode_data.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
-# reverse Zipf order so later, more common words overwrite in dictionary
-reversed_eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
+# was putting in reverse Zipf order so later, more common words overwrite in dictionary
+# but stopped once started distinguising case; also had problems with tac of this file
+#	gunzip -c $< | tac > $@
+eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
-	gunzip -c $< | tac > $@
+	gunzip -c $< > $@
 
 dean.ew = $(HOME)/data/text/eigenwords/output_200_PHC.txt
 
 # --- auction data	streaming file layout of data from rectangle, with words embedded
 #	./embed_auction --eigen_file=$(dean.ew) --downcase --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 #      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
-auction_data: embed_auction rectangle_data.tsv vocabulary.txt  reversed_eigenwords.en
+auction_data: embed_auction rectangle_data.tsv vocabulary.txt eigenwords.en
 	rm -rf $@
 	mkdir auction_data
-	./embed_auction --eigen_file=reversed_eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
+	./embed_auction --eigen_file=eigenwords.en --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
+	chmod +x $@/index.sh
+
+# --- data used in testing auction (fewer cases, features)
+nTestLines = 400000
+nTestCases =  50000
+nTestEigenDim  = 20
+
+rect_test.tsv: prep_events.txt tags_test.txt convert
+	head -n $(nTestLines) prep_events.txt | ./convert --tag_file=tags_test.txt > $@
+
+auction_test_data: embed_auction rect_test.tsv eigenwords.en # vocabulary.txt used but don't want to rebuild
+	rm -rf $@
+	mkdir auction_test
+	head -n $(nTestCases) rect_test.tsv | ./embed_auction --eigen_file=eigenwords.en --eigen_dim $(nTestEigenDim) --vocab=vocabulary.txt  -o $@
 	chmod +x $@/index.sh
 
 theAuction = ../../auctions/auction
 
-inDir   = auction_data
-
 .PHONY: run_auction run_mult_auction multinomial binomial
 
-# --- binomial version
+# --- binomial version converted to run in test data by modifying inDir to refer to test directory
 #      blank word word0 defaults to all other words for baseline; multinomial case require prepositions.txt (pick words to use)
 
 word0   = 
 word1   = to
+
+inDir   = auction_test_data
+
 biDir   = $(inDir)/$(word0)_$(word1)
 
-binomial: recode_data # $(inDir)
+binomial: recode_data  
 	rm -rf $(biDir)/; mkdir $(biDir)
 	sed "3d" $(inDir)/index.sh > $(biDir)/X.sh
 	chmod +x $(biDir)/X.sh
 	./recode_data --input_dir=$(inDir) --output_dir=$(biDir) --word0=$(word0) --word1=$(word1)
 	cat $(biDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(biDir)/cv_indicator
 
-run_auction: # $(outDir)
-	# rm -rf $(outDir)/X  #  build manually [./X.sh > X in in_to] while debugging... this part is not running so just build X manually
-	# mkfifo $(outDir)/X 
-	# cat ./$(outDir)/X.sh > $(outDir)/X &
-	# mkdir -p auction_run
-	$(theAuction) -Y$(outDir)/Y -C$(outDir)/cv_indicator -X$(outDir)/X -o auction_run -r 1000 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
+$(biDir)/X : $(biDir)/X.sh binomial
+	rm -rf $@
+	cd $(biDir); ./X.sh > X
+
+auction_test: $(biDir)/X
+	rm -rf $@
+	mkdir $@
+	$(theAuction) -Y$(biDir)/Y -C$(biDir)/cv_indicator -X$(biDir)/X -o $@ -r 100 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
+
+
 
 # --- multinomial version
 #	recode_data puts several Ys with common selection indicator (which may force balanced estimation) into multDir
@@ -136,8 +159,6 @@ run_auction: # $(outDir)
 
 # only big 6, nExamples of each
 prepositions = of in for to on with
-
-nExamples = 50000
 
 multDir = $(inDir)/multinomial
 

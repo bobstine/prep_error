@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e60pr10k_mixed/"
+patha <- "~/C/projects/prep_error/saved_results/n1500_e60p_r10k_mixed/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -18,9 +18,7 @@ y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 cv <- readLines(paste0(patha,"cv_indicator"))
 cv <- as.numeric(  strsplit(cv[4],'\t')[[1]]  )  # only want first part of list result
 sum(cv)
-
-##     frequencies should match balancing frequency
-train <- which(cv==1)
+train <- which(cv==1)                            # frequencies should match balancing frequency
 table( y.all[ train ] )
 
 ## --- one model: get the fitted values from a model
@@ -36,18 +34,20 @@ table(0.5 < Data.of[1:n.est,"Fit"], y.all[train])
 
 tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
 
+## ----------------------------------------------------------------
+##     join fits for all models ... just training
+##
 
-## --- join fits for all models ... just training
-prepositions <- c("of","in","for") #  ,"to","on","with")
+prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
 Fits <- NULL
 for(i in 1:length(prepositions)) {
     data <- read.delim(paste0(pathb,prepositions[i],"/model_data.txt"))
     Fits[[i]] <- data[1:n.train,"Fit"]
 }
-Fits <-  as.data.frame(Fits)
+dim( Fits <-  as.data.frame(Fits) )
+
 names(Fits) <- paste0("fit_",prepositions)
-dim(Fits)
 
 ##     check that matches C++ sensitivity
 table(y.all[train]=="of",0.5<Fits$fit_of)
@@ -56,12 +56,35 @@ table(y.all[train]=="of",0.5<Fits$fit_of)
 choice <- apply(Fits[,1:length(prepositions)],1,which.max)
 Fits.tab <- table(y.all[train],choice)
 colnames(Fits.tab) <- prepositions
-
-Fits.tab <- Fits.tab[prepositions,] # arrange rows
+Fits.tab <- Fits.tab[prepositions,]      # arrange rows
 
 round(Fits.tab/50000,2)
 
-## --- multivariate calibration exercise
+## -----------------------------------------------------------
+##     entropy and errors
+##
+##            accuracy is monotone decreasing in entropy
+##
+
+entropy <- function(p) {
+    p <- pmin(0.99999,pmax(0.00001,p))
+    p <- p/sum(p)
+    -sum(p*log(p))
+}
+
+entropy.fit <- apply(Fits,1,entropy)
+
+deciles <- quantile(entropy.fit,(1:9)/10)
+bin <- 1+rowSums(outer(entropy.fit,deciles,'>'))
+
+correct <- prepositions[choice] == y.all[train]
+
+tapply(correct,bin,mean)
+
+
+
+## -----------------------------------------------------------
+##     multivariate calibration exercise
 Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
 colnames(Y) <- prepositions
 

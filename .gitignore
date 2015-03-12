@@ -11,11 +11,15 @@ vocabulary.txt
 all_tags.txt
 tag_count.txt
 reversed_eigenwords.en
+eigenwords.en	
 rectangle_data.tsv
 embedded_data.txt
 auction_data
 saved_results
 auction_run
 auction_temp
+auction_test
+auction_test_data
 fits.Rdata
-	
+rect_test.tsv
+tags_test.txt

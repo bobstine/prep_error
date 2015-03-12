@@ -55,29 +55,10 @@ write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& da
 template<class T1, class T2>
 void
 write_bundle(std::string bundleName, std::string streamName, std::string attributes,
-	     std::vector<std::vector<T1>> const& coor, std::vector<T2> const& sum, int nMissing, std::vector<std::string> const& labels,
+	     std::vector<std::vector<T1>> const& coor, std::vector<T2> const& sum, int nMissing,
+	     std::vector<std::string> const& labels, std::string attributeOfLabels,   // var name labels optionally added as attribute if not empty
 	     std::ofstream &shellFile, std::string outputDir);
 
-template<class T1>
-void
-write_bundle(std::string bundleName, std::string streamName, std::string attributes,
-	     std::vector<std::vector<T1>> const& coor, std::vector<std::string> const& labels,
-	     std::ofstream &shellFile, std::string outputDir)
-{
-  write_bundle<T1,int>(bundleName, streamName, attributes, coor, std::vector<int>(coor[0].size()), 0, labels, shellFile, outputDir);
-}
-
-template<class T1, class T2>
-void
-write_bundle(std::string bundleName, std::string streamName, std::string attributes,
-	     std::vector<std::vector<T1>> const& coor, std::vector<T2> const& sum, int nMissing,
-	     std::ofstream &shellFile, std::string outputDir)
-{
-  const size_t k = coor[0].size();
-  std::vector<std::string> labels{k};
-  for (size_t i=0; i<k; ++i) labels[i] = "ew" + std::to_string(i);
-  write_bundle<T1,T2>(bundleName, streamName, attributes, coor, sum, nMissing, labels, shellFile, outputDir);
-}
 
 // -----
 
@@ -292,9 +273,9 @@ write_categorical_bundle(std::string fieldName, std::vector<std::string> const& 
   std::vector<std::string> labels{categories.size()};
   auto cat = categories.begin();
   for(size_t i=0; i<categories.size(); ++i) labels[i] = *cat++;
-  const std::string streamName{"main"};
-  const std::string attributes = " parent " + fieldName;
-  write_bundle<int>(fieldName, streamName, attributes, dummyVars,  labels, shellStream, outputDirectory);
+  const std::string streamName       = fieldName + "_cat";
+  const std::string commonAttributes = " parent " + fieldName;
+  write_bundle(fieldName, streamName, commonAttributes, dummyVars, std::vector<float>(0), 0, labels, "category", shellStream, outputDirectory);
 }
 
 //     write_eigenword_bundle     write_eigenword_bundle     write_eigenword_bundle     write_eigenword_bundle
@@ -324,20 +305,25 @@ write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& da
   }
   if (verbose)
     std::clog << tag << "Found " << nMissing << " missing cases for eigenword bundle " << fieldName << std::endl;
-  write_bundle<float,double>(fieldName, fieldName, std::string(""), eigenCoord, sum, nMissing, shellStream, outputDirectory);
+  std::vector<std::string> labels{nEigenDim};
+  for (size_t i=0; i<nEigenDim; ++i) labels[i] = "ew" + std::to_string(i);
+  std::string commonAttributes  ("");
+  std::string attributeForLabels("");
+  write_bundle(fieldName, fieldName, commonAttributes, eigenCoord, sum, nMissing, labels, attributeForLabels, shellStream, outputDirectory);
 }
   
 //     write_bundle     write_bundle     write_bundle     write_bundle     write_bundle     write_bundle
 template<class T1, class T2>
 void
-write_bundle(std::string bundleName, std::string streamName, std::string attributePairs,
+write_bundle(std::string bundleName, std::string streamName, std::string commonAttributePairs,
 	     std::vector<std::vector<T1>> const& coor, std::vector<T2> const& sum, int nMissing, 
-	     std::vector<std::string> const& labels, std::ofstream &shellFile, std::string outputDir)      
+	     std::vector<std::string> const& labels, std::string attributeOfLabels,
+	     std::ofstream &shellFile, std::string outputDir)      
 {
   size_t n = coor.size();
   size_t nEigenDim = coor[0].size();
   assert (nEigenDim == labels.size());
-  if (0 < nMissing)  // write missing indicator for the bundle
+  if (0 < nMissing)  // write one missing indicator for the bundle
   { std::string varName = bundleName + "_" + "Missing";
     shellFile << "cat " << varName << std::endl;
     std::ofstream file(outputDir + varName);
@@ -357,7 +343,10 @@ write_bundle(std::string bundleName, std::string streamName, std::string attribu
     shellFile << "cat " << varName << std::endl;
     std::ofstream file(outputDir + varName);
     file << varName << std::endl;
-    file << "role x stream " << streamName << attributePairs << std::endl;    // attributes
+    file << "role x stream " << streamName << commonAttributePairs;
+    if (!attributeOfLabels.empty())
+      file << " " << attributeOfLabels << " " << labels[d];
+    file << std::endl;
     if(nMissing == 0)
     { for(size_t i=0; i<n-1; ++i) file << coor[i][d] << "\t";  // no tab at end
       file << coor[n-1][d];
