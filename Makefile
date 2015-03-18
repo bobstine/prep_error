@@ -117,7 +117,7 @@ rect_test.tsv: prep_events.txt tags_test.txt convert
 
 auction_test_data: embed_auction rect_test.tsv eigenwords.en # vocabulary.txt used but don't want to rebuild
 	rm -rf $@
-	mkdir auction_test
+	mkdir -p auction_test_data
 	head -n $(nTestCases) rect_test.tsv | ./embed_auction --eigen_file=eigenwords.en --eigen_dim $(nTestEigenDim) --vocab=vocabulary.txt  -o $@
 	chmod +x $@/index.sh
 
@@ -131,25 +131,25 @@ theAuction = ../../auctions/auction
 word0   = 
 word1   = to
 
-inDir   = auction_test_data
+inTestDir   = auction_test_data
 
-biDir   = $(inDir)/$(word0)_$(word1)
+outTestDir  = $(inTestDir)/$(word0)_$(word1)
 
 binomial: recode_data  
-	rm -rf $(biDir)/; mkdir $(biDir)
-	sed "3d" $(inDir)/index.sh > $(biDir)/X.sh
-	chmod +x $(biDir)/X.sh
-	./recode_data --input_dir=$(inDir) --output_dir=$(biDir) --word0=$(word0) --word1=$(word1)
-	cat $(biDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(biDir)/cv_indicator
+	rm -rf $(outTestDir)/; mkdir $(outTestDir)
+	sed "3d" $(inTestDir)/index.sh > $(outTestDir)/X.sh
+	chmod +x $(outTestDir)/X.sh
+	./recode_data --input_dir=$(inTestDir) --output_dir=$(outTestDir) --word0=$(word0) --word1=$(word1)
+	cat $(outTestDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(outTestDir)/cv_indicator
 
-$(biDir)/X : $(biDir)/X.sh binomial
+$(outTestDir)/X : $(outTestDir)/X.sh 
 	rm -rf $@
-	cd $(biDir); ./X.sh > X
+	cd $(outTestDir); ./X.sh > X
 
-auction_test: $(biDir)/X
+auction_test: $(outTestDir)/X  # build binomial first *manually*  ; to re-run, rm auction_test
 	rm -rf $@
 	mkdir $@
-	$(theAuction) -Y$(biDir)/Y -C$(biDir)/cv_indicator -X$(biDir)/X -o $@ -r 100 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
+	$(theAuction) -Y$(outTestDir)/Y -C$(outTestDir)/cv_indicator -X$(outTestDir)/X -o $@ -r 100 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=40
 
 
 
@@ -158,7 +158,10 @@ auction_test: $(biDir)/X
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, nExamples of each
-prepositions = of in for to on with
+# prepositions = of in for to on with
+prepositions = of
+
+inDir = auction_data
 
 multDir = $(inDir)/multinomial
 

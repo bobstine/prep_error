@@ -1,3 +1,13 @@
+ 1.5m 100 dim 3 words either side 10000 rounds paramveer, mixed, single
+
+          of   in  for   to   on with
+   of   0.88 0.04 0.03 0.01 0.02 0.02
+   in   0.19 0.56 0.06 0.04 0.08 0.07
+   for  0.24 0.06 0.50 0.06 0.06 0.09
+   to   0.12 0.05 0.06 0.66 0.05 0.06
+   on   0.19 0.06 0.07 0.05 0.55 0.07
+   with 0.16 0.05 0.06 0.05 0.05 0.64
+
  1.5m 60 dim 10000 rounds paramveer, mixed (new data source: similar,
 						better for to)
 	single precision (basically same as double)

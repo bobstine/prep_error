@@ -313,6 +313,11 @@ write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& da
 }
   
 //     write_bundle     write_bundle     write_bundle     write_bundle     write_bundle     write_bundle
+//
+//  write the several dummy variables to represent a single categorical variable or
+//  the bundle of coordinates for an eigenword embedding
+//
+
 template<class T1, class T2>
 void
 write_bundle(std::string bundleName, std::string streamName, std::string commonAttributePairs,
