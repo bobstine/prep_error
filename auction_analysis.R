@@ -4,14 +4,18 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e60p_r10k_mixed/"
+patha <- "~/C/projects/prep_error/saved_results/n1500_e100p_r10k_mixed_sgl/"
 pathb <- patha
 
 ##     while running the path is as follows
 patha <- "~/C/projects/prep_error/auction_data/multinomial/"
 pathb <- "~/C/projects/prep_error/auction_temp/"
 
-##     y.all has the list of all prepositions
+##     get data to local machine
+cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
+system(cmd)
+
+##     y.all has the list of all prepositions (text)
 y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 
 ##     cv is 0/1 indicator of which words went to estimation
@@ -33,6 +37,7 @@ table(Data.of[1:n.est,"Y_of"], y.all[train])
 table(0.5 < Data.of[1:n.est,"Fit"], y.all[train])
 
 tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
+
 
 ## ----------------------------------------------------------------
 ##     join fits for all models ... just training
@@ -74,17 +79,60 @@ entropy <- function(p) {
 
 entropy.fit <- apply(Fits,1,entropy)
 
-deciles <- quantile(entropy.fit,(1:9)/10)
-bin <- 1+rowSums(outer(entropy.fit,deciles,'>'))
+q   <- quantile(entropy.fit,(1:49)/50)
+bin <- 1+rowSums(outer(entropy.fit,q,'>'))
 
 correct <- prepositions[choice] == y.all[train]
 
-tapply(correct,bin,mean)
+pct <- tapply(correct,bin,mean)
+plot(pct)
 
+##     low entropy (easy to predict)
+o <- order(entropy.fit, decreasing=FALSE)
+k <- 1:20
+o[k]
+entropy.fit[o[k]]
+m <- cbind(choice[o[k]],round(Fits[o[k],],2)); rownames(m) <- (y.all[train])[o[k]]; m
+
+##     hi entropy (hard to predict)
+o <- order(entropy.fit, decreasing=FALSE)
+k <- length(o) - 0:19
+o[k]
+entropy.fit[o[k]]
+m <- cbind(choice[o[k]],round(Fits[o[k],],2)); rownames(m) <- (y.all[train])[o[k]]; m
 
 
 ## -----------------------------------------------------------
-##     multivariate calibration exercise
+##     regular calibration
+
+Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
+colnames(Y) <- prepositions
+
+Fits <- as.matrix(Fits)
+
+i <- sample(1:nrow(Y),10000); 
+
+##     example [ slope(OF) != 1 ???]
+prp <- 'with'; fprp <- paste0("fit_",prp)
+plot(Y[i,prp] ~ Fits[i,fprp])
+summary( regr <-  lm(Y[,prp] ~ Fits[,fprp]) ); mean(Y[,prp]); mean(Fits[,fprp])
+abline (a=0,b=1,col='gray',lty=3)
+ss <- smooth.spline(Y[i,prp] ~ Fits[i,fprp], df=6)
+lines(ss,col='red')
+
+y <- Y[,prp]
+x <- Fits[,fprp]
+summary( regr <- lm(y ~ x) )
+summary( cr   <- lm(y ~ poly(x,3,raw=T)))
+pred <- outer(x[i],0:3,'^') %*% coefficients(cr)
+points(x[i],pred)
+
+points(pred,y[i],col='green')
+lines(smooth.spline(pred,y[i],df=6),col='green')
+
+## -----------------------------------------------------------
+##     multivariate calibration
+
 Y <- 0+outer(y.all[train],prepositions,function(a,b){a == b})
 colnames(Y) <- prepositions
 
@@ -96,17 +144,46 @@ summary( regr <-  lm(Y[,1] ~ Fits) )
 ##     all of them
 newFits <-  matrix(NA, nrow=nrow(Y), ncol=ncol(Y))
 for(i in 1:6) { newFits[,i] <-  fitted(lm(Y[,i] ~ Fits)) }
+colnames(newFits) <- paste0("fit.",prepositions)
 
 ##     which prep gets largest probability
 choice <- apply(newFits[,1:length(prepositions)],1,which.max)
 newFits.tab <- table(y.all[train],choice)
 colnames(newFits.tab) <- prepositions
 
-newFits.tab <- newFits.tab[prepositions,]
+newFits.tab <- newFits.tab[prepositions,]; 
 
-round(newFits.tab/20000,2)
+round(newFits.tab/50000,2)
 
 save(Fits, newFits, Y, file="fits.Rdata")
+
+## was like this before calibrating
+         of   in  for   to   on with
+  of   0.88 0.04 0.03 0.01 0.02 0.02
+  in   0.19 0.56 0.06 0.04 0.08 0.07
+  for  0.24 0.06 0.50 0.06 0.06 0.09
+  to   0.12 0.05 0.06 0.66 0.05 0.06
+  on   0.19 0.06 0.07 0.05 0.55 0.07
+  with 0.16 0.05 0.06 0.05 0.05 0.64
+## became this
+         of   in  for   to   on with
+  of   0.76 0.06 0.07 0.02 0.05 0.04
+  in   0.06 0.61 0.09 0.05 0.11 0.08
+  for  0.08 0.08 0.59 0.07 0.08 0.10
+  to   0.03 0.06 0.08 0.68 0.07 0.07
+  on   0.05 0.08 0.10 0.05 0.64 0.08
+  with 0.04 0.06 0.09 0.06 0.07 0.68
+
+## regular calibration is now much better with coef 1
+prp <- 'of'; fprp <- paste0("fit.",prp)
+i <- sample(1:nrow(Y),10000); 
+plot(Y[i,prp] ~ newFits[i,fprp])
+summary( regr <-  lm(Y[,prp] ~ newFits[,fprp]) )
+abline (a=0,b=1,col='gray',lty=3)
+ss <- smooth.spline(Y[i,prp] ~ newFits[i,fprp], df=6)
+lines(ss,col='red')
+
+## could have also just plugged in a calibrated prediction for 'of'
 
 
 
