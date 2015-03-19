@@ -158,8 +158,8 @@ auction_test: $(outTestDir)/X  # build binomial first *manually*  ; to re-run, r
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, nExamples of each
-# prepositions = of in for to on with
-prepositions = of
+# prepositions = of
+prepositions = of in for to on with
 
 inDir = auction_data
 

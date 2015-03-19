@@ -1,3 +1,7 @@
+There results add the single spline calibrator to the model.
+
+
+In this run, the model for 'of' was not calibrated.  Don't know why.
  1.5m 100 dim 3 words either side 10000 rounds paramveer, mixed, single
 
           of   in  for   to   on with
