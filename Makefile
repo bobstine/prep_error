@@ -192,5 +192,16 @@ run_mult_auction: $(addprefix $(resultsPath),$(prepositions))
 	cp $(multDir)/Y_all.txt $(resultsPath)/Y_all.txt
 
 ###########################################################################
+# ---  find sentences with hi/low entropy  (find in R in auction_analysis.R)
+
+entropy_low.lines: entropy_low.lnum    # -P for perl option to parse \t as tab
+	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
+
+entropy_high.lines: entropy_high.lnum 
+	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
+
+
+###########################################################################
+###########################################################################
 
 include ~/C/rules_for_makefiles
