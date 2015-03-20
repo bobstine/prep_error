@@ -205,8 +205,45 @@ lines(ss,col='red')
 ## could have also just plugged in a calibrated prediction for 'of'
 
 
+## -----------------------------------------------------------
+##     model data
+##
+##            look at the spline calibrator
+##
+
+Data <- read.delim("~/Desktop/model_data.txt")
+dim(Data); names(Data)
+
+pred.formula <- paste(names(Data)[5:25], collapse="+")
+
+regr <- lm(paste("Y ~",pred.formula),data=Data)
+summary(regr)
+
+##     fit before adding spline
+##          pretty well calibrated but for the neg values
+x <- fitted(regr); y <- Data[,"Y"]
+plot(x, y)
+abline(a=0,b=1,col='gray',lty=3)
+lines(smooth.spline(x,y,df=5), col='red') 
+
+##     spline from data matches smoothed residuals
+x <- fitted(regr); y <- residuals(regr)
+plot(x,y)
+lines(smooth.spline(x,y,df=5),col='gray')
+points(x, Data$spline.Y_hat_21.,col='pink')
+
+##     add spline to regression fit ... pulls up points that were negative
+regr.s <- lm(paste("Y ~",pred.formula,"+spline.Y_hat_21."), data=Data)
+summary(regr.s)
+x <- fitted(regr.s); y <- Data[,"Y"]
+plot(x, y)
+abline(a=0,b=1,col='gray',lty=3)
+lines(smooth.spline(x,y,df=5), col='red') 
+
 
 ## ------------------------------------------------  early test, debugging code  -------------------------------------
+
+plot()
 
 ## --- Check the data used to fit auction models
 
