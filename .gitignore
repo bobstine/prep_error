@@ -4,6 +4,7 @@
 convert
 embed
 embed_auction
+embed_random_auction
 recode_data
 prep_events.txt
 prepositions.txt
@@ -12,6 +13,7 @@ all_tags.txt
 tag_count.txt
 reversed_eigenwords.en
 eigenwords.en
+eigenwords.dean
 rectangle_data.tsv
 embedded_data.txt
 auction_data

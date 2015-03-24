@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e100p_r10k_mixed_sgl/"
+patha <- "~/C/projects/prep_error/saved_results/n1500_e200p_r10k_spline/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -22,10 +22,15 @@ y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 cv <- readLines(paste0(patha,"cv_indicator"))
 cv <- as.numeric(  strsplit(cv[4],'\t')[[1]]  )  # only want first part of list result
 sum(cv)
+test  <- which(cv==0)
 train <- which(cv==1)                            # frequencies should match balancing frequency
 table( y.all[ train ] )
 
-## --- one model: get the fitted values from a model
+table( y.all[ test ] )
+
+## --------------------------------------------------------------
+##     check one model
+one model: get the fitted values from a model
 Data.of <- read.delim(paste0(pathb,"of/model_data.txt"))
 names(Data.of); dim(Data.of)
 
@@ -33,10 +38,20 @@ names(Data.of); dim(Data.of)
 n.est <- sum(Data.of[,"Role"]=="est")
 table(Data.of[1:n.est,"Y_of"], y.all[train])
 
+n.val <- sum(Data.of[,"Role"]=="val")
+table(Data.of[(n.est+1):nrow(Data.of),"Y_of"], y.all[test])
+
 ##     labeling of words; means of fit by word
 table(0.5 < Data.of[1:n.est,"Fit"], y.all[train])
-
 tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
+
+table(0.5 < Data.of[(n.est+1):nrow(Data.of),"Fit"], y.all[test])
+tapply(Data.of[(n.est+1):nrow(Data.of),"Fit"], y.all[test], mean)
+
+##     only the right pattern in the training; not in test
+table(y.all[train],Data.of[1:n.train,"Y_of"])
+table(y.all[test],Data.of[(n.est+1):nrow(Data.of),"Y_of"])
+
 
 
 ## ----------------------------------------------------------------
@@ -45,25 +60,42 @@ tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
 
 prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
-Fits <- NULL
+n.test  <- length(test)
+Y <-  Preds <- Fits  <- NULL
 for(i in 1:length(prepositions)) {
     data <- read.delim(paste0(pathb,prepositions[i],"/model_data.txt"))
-    Fits[[i]] <- data[1:n.train,"Fit"]
+    Fits[[i]]  <- data[1:n.train,"Fit"]
+    Preds[[i]] <- data[(n.train+1):(n.train+n.test),"Fit"]
+    Y    [[i]] <- data[(n.train+1):(n.train+n.test),paste0("Y_",prepositions[i])]
 }
-dim( Fits <-  as.data.frame(Fits) )
+dim( Fits <- as.data.frame(Fits ) )
+dim(Preds <- as.data.frame(Preds) )
+names(Preds) <- names( Fits) <- paste0("fit_",prepositions)
+dim(  Y   <- as.matrix(  Y  ) )  # Y is actual response in test
+colnames(Y) <-  prepositions
+Y <- prepositions[Y %*% (1:6)]
 
-names(Fits) <- paste0("fit_",prepositions)
-
-##     check that matches C++ sensitivity
-table(y.all[train]=="of",0.5<Fits$fit_of)
+##     check that these counts matche C++ counts in train and test
+##     have to use the shuffled preds, not y.all for test
+table(y.all[train]=="of",0.5< Fits$fit_of)
+table(Y   ,              0.5<Preds$fit_of)
 
 ##     which prep gets largest probability
+##        first in training
 choice <- apply(Fits[,1:length(prepositions)],1,which.max)
 Fits.tab <- table(y.all[train],choice)
 colnames(Fits.tab) <- prepositions
 Fits.tab <- Fits.tab[prepositions,]      # arrange rows
-
 round(Fits.tab/50000,2)
+
+##         and in test
+choice <- apply(Preds[,1:length(prepositions)],1,which.max)
+Preds.tab <- table(Y,choice)
+colnames(Preds.tab) <- prepositions
+Preds.tab <- Preds.tab[prepositions,]
+s <- rowSums(Preds.tab)
+round((Preds.tab)/s,2)
+
 
 ## -----------------------------------------------------------
 ##     entropy and errors

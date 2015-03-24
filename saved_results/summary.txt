@@ -1,8 +1,36 @@
-There results add the single spline calibrator to the model.
+1.5M s, 10k r, 200 d, dean, spline -- no so good
+                                         
+         of   in  for   to   on with     
+  of   0.72 0.05 0.04 0.05 0.06 0.08	 
+  in   0.09 0.49 0.06 0.09 0.13 0.14	 
+  for  0.10 0.07 0.44 0.11 0.11 0.17	 
+  to   0.04 0.05 0.05 0.66 0.09 0.12	 
+  on   0.06 0.06 0.05 0.08 0.62 0.13	 
+  with 0.06 0.05 0.05 0.09 0.09 0.67	 
+					 
+1.5M s, 10k r, 200 d, paramveer, spline -- best yet  (validation weaker)
+                                        
+          of   in  for   to   on with	          of   in  for   to   on with  
+   of   0.82 0.06 0.05 0.02 0.03 0.03	   of   0.81 0.06 0.05 0.02 0.03 0.03  
+   in   0.08 0.65 0.07 0.05 0.08 0.08	   in   0.08 0.63 0.08 0.05 0.08 0.08  
+   for  0.10 0.09 0.57 0.07 0.06 0.10	   for  0.11 0.10 0.54 0.08 0.07 0.11  
+   to   0.05 0.06 0.07 0.70 0.05 0.07	   to   0.05 0.07 0.08 0.68 0.06 0.07  
+   on   0.07 0.09 0.09 0.06 0.62 0.08	   on   0.08 0.09 0.09 0.06 0.60 0.08  
+   with 0.06 0.07 0.08 0.06 0.05 0.67	   with 0.06 0.08 0.08 0.07 0.06 0.65  
 
+There results add the single spline calibrator to the model as well as
+switch to Dean's top 100d eigenwords (first 100).
+
+          of   in  for   to   on with
+  of   0.76 0.06 0.05 0.02 0.07 0.03
+  in   0.10 0.53 0.07 0.06 0.17 0.08
+  for  0.12 0.09 0.47 0.07 0.15 0.10
+  to   0.05 0.06 0.06 0.62 0.12 0.07
+  on   0.07 0.07 0.06 0.05 0.66 0.08
+  with 0.08 0.07 0.08 0.08 0.17 0.52
 
 In this run, the model for 'of' was not calibrated.  Don't know why.
- 1.5m 100 dim 3 words either side 10000 rounds paramveer, mixed, single
+ 1.5m 100 dim 3 words either side 10000 rounds paramveer, mixed
 
           of   in  for   to   on with
    of   0.88 0.04 0.03 0.01 0.02 0.02
@@ -14,7 +42,6 @@ In this run, the model for 'of' was not calibrated.  Don't know why.
 
  1.5m 60 dim 10000 rounds paramveer, mixed (new data source: similar,
 						better for to)
-	single precision (basically same as double)
           of   in  for   to   on with
    of   0.75 0.07 0.07 0.03 0.04 0.05
    in   0.08 0.60 0.08 0.06 0.09 0.09
@@ -22,6 +49,8 @@ In this run, the model for 'of' was not calibrated.  Don't know why.
    to   0.05 0.07 0.08 0.66 0.07 0.08
    on   0.06 0.08 0.08 0.06 0.63 0.09
    with 0.06 0.07 0.09 0.07 0.06 0.66
+
+^^^^^^	single precision (basically same as double)
 
 	double precision
          of   in  for   to   on with

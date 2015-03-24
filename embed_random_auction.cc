@@ -1,8 +1,9 @@
 /*
   Embeds the output of convert.cc into an eigenword representation
-  Builds the eigenword dictionary with prior input from a given
-  vocabulary.  Only embeds fields identified by "xxx_WORD" variable
-  name.  Otherwise encodes things like POS as categorical.
+  Builds *RANDOM* eigenword dictionary with prior input from a given
+  vocabulary.  Only does this for the eigenword fiels identified by
+  embeds fields identified by "xxx_WORD" variable name.  Otherwise
+  encodes things like POS as actual categorical.
 
   Input: Rectangular style (tab delimited, with uniform set of columns)
        Y        BGL      BGR   FF   FH         PV      
@@ -13,8 +14,8 @@
           wanted by auction.  
 	      response
 	      cv_indicator
-	      eigen_stream_1
-	      eigen_stream_2
+	      random eigen_stream_1
+	      random eigen_stream_2
 	       ...
 */
 
@@ -69,7 +70,8 @@ bool found(Item x, std::vector<Item> const& c)
 void
 parse_arguments(int argc, char** argv,
 		std::string& vocabularyFileName,
-		std::string& eigenwordFileName, int& eigenwordDimension, bool &downcase,
+		int& eigenwordDimension,
+		bool &downcase,
 		std::string& outputDirectory);
 
 
@@ -102,14 +104,12 @@ int main(int argc, char** argv)
 
   // parse arguments after setting default parameters
   string vocabFileName ("vocabulary.txt");
-  string eigenFileName ("eigenwords.test");
   int    nEigenDim     (0);                 // use all that are found
-  string outputDir     ("data_dir/");
-  bool   downcase      (false);             // tokens
-
-  parse_arguments(argc, argv, vocabFileName, eigenFileName, nEigenDim, downcase, outputDir);
+  string outputDir     {"data_dir/"};
+  bool   downcase      {false};
+  parse_arguments(argc, argv, vocabFileName, nEigenDim, downcase, outputDir);
   if (outputDir[outputDir.size()-1]!='/') outputDir += "/";
-  std::clog << "embed_auction --vocab_file=" << vocabFileName << " --eigen_file=" << eigenFileName
+  std::clog << "embed_random_auction --vocab_file=" << vocabFileName 
 	    << " --eigen_dim=" << nEigenDim << " --output_dir=" << outputDir;
   if (downcase) std::clog << " --downcase";
   std::clog << std::endl;
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
   if (verbose) std::clog << tag << "Input vocabulary has " << vocabulary.size() << " words.\n";
 
   // build eigen dictionary
-  Text::SimpleEigenDictionary eigenDictionary = Text::make_simple_eigen_dictionary(eigenFileName, nEigenDim, vocabulary, downcase);
+  Text::SimpleEigenDictionary eigenDictionary = Text::make_random_simple_eigen_dictionary(nEigenDim, vocabulary);
   if (verbose) std::clog << tag << "Eigendictionary has " << eigenDictionary.size() << " words.\n";
   Text::compare_dictionary_to_vocabulary(eigenDictionary, vocabulary);
 
@@ -375,27 +375,25 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
 void
 parse_arguments(int argc, char** argv,
 		std::string& vocabFileName,
-		std::string& eigenFileName, int& eigenDim, bool& downcase,
+		int& eigenDim, bool& downcase,
 		std::string& outputDir)
 {
   static struct option long_options[] = {
     {"downcase",   no_argument,       0, 'c'},
     {"eigen_dim",  required_argument, 0, 'd'},
-    {"eigen_file", required_argument, 0, 'e'},
     {"output_dir", required_argument, 0, 'o'},
     {"vocab",      required_argument, 0, 'v'},
     {0, 0, 0, 0}                             // terminator
   };
   int key;
   int option_index = 0;
-  while (-1 !=(key = getopt_long (argc, argv, "cd:e:o:v:", long_options, &option_index))) // colon means has argument
+  while (-1 !=(key = getopt_long (argc, argv, "cd:o:v:", long_options, &option_index))) // colon means has argument
   {
     // std::cout << "Key " << char(key) << " to option " << long_options[option_index].name << " index=" << option_index << std::endl;
     switch (key)
     {
     case 'c' :  { downcase = true;        break;      }
     case 'd' :  { eigenDim = read_utils::lexical_cast<int>(optarg); break; }
-    case 'e' :  { eigenFileName = optarg; break;      }
     case 'o' :  { outputDir = optarg;     break;      }
     case 'v' :  { vocabFileName = optarg; break;      }
     default:
