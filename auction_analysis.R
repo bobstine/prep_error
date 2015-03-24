@@ -8,14 +8,14 @@ patha <- "~/C/projects/prep_error/saved_results/n1500_e200p_r10k_spline/"
 pathb <- patha
 
 ##     while running the path is as follows
-patha <- "~/C/projects/prep_error/auction_data/multinomial/"
-pathb <- "~/C/projects/prep_error/auction_temp/"
+# patha <- "~/C/projects/prep_error/auction_data/multinomial/"
+# pathb <- "~/C/projects/prep_error/auction_temp/"
 
 ##     get data to local machine
 cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
 system(cmd)
 
-##     y.all has the list of all prepositions (text)
+##     y.all has the list of all prepositions (text)  896008
 y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 
 ##     cv is 0/1 indicator of which words went to estimation
@@ -117,21 +117,22 @@ bin <- 1+rowSums(outer(entropy.fit,q,'>'))
 correct <- prepositions[choice] == y.all[train]
 
 pct <- tapply(correct,bin,mean)
-plot(pct)
+plot((1:50)/50,pct, xlab="Entropy Percentile",ylab="Pct Correct", 
+      main="Accuracy drops as entropy of predictions increases")
 
-##     low entropy (easy to predict)
+##     low entropy (easy to predict; run from C makefile)
 o <- order(entropy.fit, decreasing=FALSE)
-k <- 1:20
-o[k]
-entropy.fit[o[k]]
-m <- cbind(choice[o[k]],round(Fits[o[k],],2)); rownames(m) <- (y.all[train])[o[k]]; m
 
-##     hi entropy (hard to predict)
-o <- order(entropy.fit, decreasing=FALSE)
-k <- length(o) - 0:19
-o[k]
-entropy.fit[o[k]]
-m <- cbind(choice[o[k]],round(Fits[o[k],],2)); rownames(m) <- (y.all[train])[o[k]]; m
+low <- sort(o[1:100])[1:10]   # sort so don't have to read too many lines to find
+entropy.fit[low]
+d.low <- data.frame(line=train[low], truth=(y.all[train])[low], choice=choice[low], Fit=round(Fits[low,],2)); 
+d.low
+
+##     high entropy
+high <- sort(o[length(o)-0:100])[1:10]   # sort so don't have to read too many lines to find
+entropy.fit[high]
+d.high <- data.frame(line=train[high], truth=(y.all[train])[high], choice=choice[high], Fit=round(Fits[high,],2)); 
+d.high
 
 
 ## -----------------------------------------------------------
@@ -149,8 +150,8 @@ prp <- 'with'; fprp <- paste0("fit_",prp)
 plot(Y[i,prp] ~ Fits[i,fprp])
 summary( regr <-  lm(Y[,prp] ~ Fits[,fprp]) ); mean(Y[,prp]); mean(Fits[,fprp])
 abline (a=0,b=1,col='gray',lty=3)
-ss <- smooth.spline(Y[i,prp] ~ Fits[i,fprp], df=6)
-lines(ss,col='red')
+ss.fit <- smooth.spline(Y[i,prp] ~ Fits[i,fprp], df=7)
+lines(ss.fit,col='red')
 
 y <- Y[,prp]
 x <- Fits[,fprp]
@@ -161,6 +162,24 @@ points(x[i],pred)
 
 points(pred,y[i],col='green')
 lines(smooth.spline(pred,y[i],df=6),col='green')
+
+##     what happens if smooth residual
+resid <- residuals(regr)
+plot(Fits[i,fprp],resid[i])
+ss.res <- smooth.spline(resid[i] ~ Fits[i,fprp], df=7)
+fit.res <- fitted(ss.res)
+lines(ss.res,col='red')
+
+##     shift preds by model fit to residuals
+x <- Fits[,fprp]+fit.res; y <- Y[,prp]
+plot(x[i],y[i])
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit2 <- smooth.spline(x,y, df=7)
+lines(ss.fit,col='red')
+
+##     soft limits for 0/1
+ plot(function(x){1+0.1*(1-exp(1-x))},xlim=c(1,4))
+ plot(function(x){.1*(exp(x)-1)},xlim=c(-3,0))
 
 ## -----------------------------------------------------------
 ##     multivariate calibration
@@ -218,8 +237,45 @@ lines(ss,col='red')
 ## could have also just plugged in a calibrated prediction for 'of'
 
 
+## -----------------------------------------------------------
+##     model data
+##
+##            look at the spline calibrator
+##
+
+Data <- read.delim("~/Desktop/model_data.txt")
+dim(Data); names(Data)
+
+pred.formula <- paste(names(Data)[5:25], collapse="+")
+
+regr <- lm(paste("Y ~",pred.formula),data=Data)
+summary(regr)
+
+##     fit before adding spline
+##          pretty well calibrated but for the neg values
+x <- fitted(regr); y <- Data[,"Y"]
+plot(x, y)
+abline(a=0,b=1,col='gray',lty=3)
+lines(smooth.spline(x,y,df=5), col='red') 
+
+##     spline from data matches smoothed residuals
+x <- fitted(regr); y <- residuals(regr)
+plot(x,y)
+lines(smooth.spline(x,y,df=5),col='gray')
+points(x, Data$spline.Y_hat_21.,col='pink')
+
+##     add spline to regression fit ... pulls up points that were negative
+regr.s <- lm(paste("Y ~",pred.formula,"+spline.Y_hat_21."), data=Data)
+summary(regr.s)
+x <- fitted(regr.s); y <- Data[,"Y"]
+plot(x, y)
+abline(a=0,b=1,col='gray',lty=3)
+lines(smooth.spline(x,y,df=5), col='red') 
+
 
 ## ------------------------------------------------  early test, debugging code  -------------------------------------
+
+plot()
 
 ## --- Check the data used to fit auction models
 
