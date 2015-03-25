@@ -15,7 +15,7 @@ pathb <- patha
 cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
 system(cmd)
 
-##     y.all has the list of all prepositions (text)  896008
+##     y.all has the list of all prepositions (text) but not aligned with test data 896008
 y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 
 ##     cv is 0/1 indicator of which words went to estimation
@@ -120,13 +120,13 @@ entropy <- function(p) {
 
 entropy.fit <- apply(Fits,1,entropy)
 
-q   <- quantile(entropy.fit,(1:49)/50)
+q   <- quantile(entropy.fit,(1:99)/100)
 bin <- 1+rowSums(outer(entropy.fit,q,'>'))
 
 correct <- prepositions[choice] == y.all[train]
 
 pct <- tapply(correct,bin,mean)
-plot((1:50)/50,pct, xlab="Entropy Percentile",ylab="Pct Correct", 
+plot((1:100)/100,pct, xlab="Entropy Percentile",ylab="Pct Correct", 
       main="Accuracy drops as entropy of predictions increases")
 
 ##     low entropy (easy to predict; run from C makefile)
@@ -136,12 +136,14 @@ low <- sort(o[1:100])[1:10]   # sort so don't have to read too many lines to fin
 entropy.fit[low]
 d.low <- data.frame(line=train[low], truth=(y.all[train])[low], choice=choice[low], Fit=round(Fits[low,],2)); 
 d.low
+d.low$line
 
 ##     high entropy
 high <- sort(o[length(o)-0:100])[1:10]   # sort so don't have to read too many lines to find
 entropy.fit[high]
 d.high <- data.frame(line=train[high], truth=(y.all[train])[high], choice=choice[high], Fit=round(Fits[high,],2)); 
 d.high
+d.high$line
 
 
 ## -----------------------------------------------------------
