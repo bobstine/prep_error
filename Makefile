@@ -14,7 +14,7 @@ USES = utils text
 
 OPT = -O3 -std=c++11
 
-level_1 = convert.o embed_random_auction.o embed_auction.o recode_data.o    embed.o 
+level_1 = convert.o embed_random_auction.o embed_auction.o recode_data.o    embed.o build_y_and_selector.o filtered_stream.o
 level_2 =
 level_3 =
 
@@ -92,6 +92,12 @@ embed_random_auction: embed_random_auction.o
 recode_data: recode_data.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
+build_y_and_selector: build_y_and_selector.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+filtered_stream: filtered_stream.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
 # was putting in reverse Zipf order so later, more common words overwrite in dictionary
 # but stopped once started distinguising case; also had problems with tac of this file
 #	gunzip -c $< | tac > $@
@@ -106,14 +112,14 @@ eigenwords = eigenwords.dean
 
 # --- auction data	streaming file layout of data from rectangle, with words embedded
 #      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
+hide-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
 	rm -rf $@
 	mkdir auction_data
 	./embed_auction --eigen_file=$(eigenwords) --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
 #     random version
-auction_data_rand: embed_random_auction rectangle_data.tsv vocabulary.txt
+rand-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 	rm -rf $@
 	mkdir $@
 	./embed_random_auction --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
@@ -123,6 +129,10 @@ auction_data_rand: embed_random_auction rectangle_data.tsv vocabulary.txt
 #
 # ---  testing auction (fewer cases, features)
 #
+#      typical build sequence...
+#	make auction_test_data
+#	make binomial
+#	make auction_test
 #---------------------------------------------------------------------------------------------------------------
 nTestLines = 400000
 nTestCases =  50000
@@ -151,21 +161,19 @@ inTestDir   = auction_test_data
 
 outTestDir  = $(inTestDir)/$(word0)_$(word1)
 
-binomial: recode_data  
+binomial: build_y_and_selector auction_test_data
 	rm -rf $(outTestDir)/; mkdir $(outTestDir)
-	sed "3d" $(inTestDir)/index.sh > $(outTestDir)/X.sh
-	chmod +x $(outTestDir)/X.sh
-	./recode_data --input_dir=$(inTestDir) --output_dir=$(outTestDir) --word0=$(word0) --word1=$(word1)
-	cat $(outTestDir)/n_obs | ../../tools/random_indicator --header --choose 0.8 > $(outTestDir)/cv_indicator
+	tail -n+4 $(inTestDir)/index.sh > $(outTestDir)/catFile    # skip first 3 lines
+	./build_y_and_selector --input_dir=$(inTestDir) --output_dir=$(outTestDir) --word0=$(word0) --word1=$(word1)
+	cat $(outTestDir)/_n_obs | ../../tools/random_indicator --header --choose 0.8 > $(outTestDir)/_cv_indicator # nobs = # selected
 
-$(outTestDir)/X : $(outTestDir)/X.sh 
-	rm -rf $@
-	cd $(outTestDir); ./X.sh > X
-
-auction_test: $(outTestDir)/X  # build binomial first *manually*  ; to re-run, rm auction_test
+auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manually*  ; to re-run, rm auction_test
 	rm -rf $@
 	mkdir $@
-	$(theAuction) -Y$(outTestDir)/Y -C$(outTestDir)/cv_indicator -X$(outTestDir)/X -o $@ -r 150 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=50
+	rm -rf $(outTestDir)/Xpipe
+	mkfifo $(outTestDir)/Xpipe
+	./filtered_stream --cat_file $(outTestDir)/catFile --selector $(outTestDir)/_selector --data_dir $(inTestDir) > $(outTestDir)/Xpipe &
+	$(theAuction) -Y$(outTestDir)/Y -C$(outTestDir)/_cv_indicator -X$(outTestDir)/Xpipe -o $@ -r 150 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=50
 
 
 #---------------------------------------------------------------------------------------------------------------

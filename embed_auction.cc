@@ -175,10 +175,10 @@ int main(int argc, char** argv)
     return 0;
   }
   shellFile << "#!/bin/sh"   << std::endl
-	    << "cat n_obs"  << std::endl
+	    << "cat _n_obs"  << std::endl
 	    << "cat " << responseName << std::endl;
   {
-    std::ofstream file (outputDir + "n_obs");
+    std::ofstream file (outputDir + "_n_obs");
     file << response.size() << std::endl;
   }
   {
@@ -335,7 +335,7 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
     shellFile << "cat " << varName << std::endl;
     std::ofstream file(outputDir + varName);
     file << varName << std::endl;
-    file << " role x stream missing original_stream" << bundleName << " indicator missing" << std::endl;
+    file << " role x stream missing originalstream " << bundleName << " indicator missing" << std::endl;
     for(size_t i=0; i<n-1; ++i)
     { if (isnan(coor[i][0]))
 	file << 1 << "\t";

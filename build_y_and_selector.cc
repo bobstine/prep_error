@@ -12,7 +12,6 @@
   
 */
 
-#include <dirent.h>
 #include <getopt.h>
 
 #include <iostream>
@@ -31,26 +30,22 @@
 
 const bool verbose = true;
 
-const std::string tag = "RCDD: ";
+const std::string tag = "BYAS: ";
 
-///// first is for two word binomial comparison, second for the multinomial case
+
+///// first is for two-word binomial comparison, second for the multinomial case; both call third
 
 std::vector<bool>
 write_binary_response(std::string word0, std::string word1, std::string inputDir, std::string outputDir);
 
 std::vector<bool>
-write_binary_responses( std::set<std::string> const& responseWords  , std::string inputDir, std::string outputDir);
+write_binary_responses( std::set<std::string> const& responseWords, std::string inputDir, std::string outputDir);
 
 void
 write_response(std::string word, std::string attributes, std::vector<std::string> const& words, std::string outputDir);
 
+
 /////
-
-std::vector<std::string>
-files_in_directory (std::string dir);
-
-int
-rewrite_predictor_file (std::string inputFile, std::vector<bool> const& selector, std::string outputFile);
 
 template <class T>
 inline
@@ -75,7 +70,6 @@ int main(int argc, char** argv)
 {
   using std::string;
  
-  // defaults
   string inputDataDir     ("input_data_dir/");
   string word0            ("");                 // all but word1
   string word1            ("word");
@@ -83,7 +77,7 @@ int main(int argc, char** argv)
   string outputDataDir    ("output_data_dir/");
   
   parse_arguments(argc, argv, inputDataDir, word0, word1, wordListFileName, outputDataDir);
-  if ( inputDataDir[ inputDataDir.size()-1] != '/')  inputDataDir += '/';
+  if ( inputDataDir[ inputDataDir.size()-1] != '/')  inputDataDir += '/';     // add trailing / to paths if needed
   if (outputDataDir[outputDataDir.size()-1] != '/') outputDataDir += '/';
 
   bool binaryCase = wordListFileName.empty();
@@ -112,7 +106,7 @@ int main(int argc, char** argv)
     }
     std::clog << "(" << responseWords.size() << " prepositions)\n";
   }
-  // selector records which cases match word0 or word1
+  // write responses and n_obs, and build a selector that records which cases match response words
   std::vector<bool> selector;
   if(binaryCase)
     selector = write_binary_response(word0, word1, inputDataDir, outputDataDir);
@@ -122,34 +116,28 @@ int main(int argc, char** argv)
   if (verbose) std::clog << tag << "Writing " << nObsSelected << " cases for word pair " << word0 << "-" << word1
 			 << " from input dir " << inputDataDir << std::endl;
 
-  { // write the file with the number of observations
-    std::ofstream countFile (outputDataDir + "_n_obs");
-    if (!countFile.good())
-    { std::cerr << tag << "Could not open file `_n_obs' for the count.\n";
+  { // write n_obs
+    std::ofstream obsFile (outputDataDir + "_n_obs");
+    if (!obsFile.good())
+    { std::cerr << tag << "Could not open file `_n_obs' that holds number of selected cases.\n";
+      return -30;
+    }
+    obsFile << nObsSelected << std::endl;
+  }
+  
+  { // write the selector to output directory as 3 lines: nobs_selected total_n_obs, then binary on second, chosen line numbers (1 origin) on third
+    std::ofstream selectorFile (outputDataDir + "_selector");
+    if (!selectorFile.good())
+    { std::cerr << tag << "Could not open file `_selector' that identifies cases to use.\n";
       return -20;
     }
-    countFile << nObsSelected << std::endl;
-  }
-    
-  { // process the rest of the files
-    std::vector<string> allfilenames = files_in_directory(inputDataDir);
-    std::set<string> removeNames;
-    removeNames.insert(".");   removeNames.insert("_n_obs");    removeNames.insert("Y");
-    removeNames.insert("..");  removeNames.insert("index.sh"); removeNames.insert(word0+"_"+word1);
-    std::vector<string> filenames;
-    for (auto filename : allfilenames)
-      if (0==removeNames.count(filename))
-	filenames.push_back(filename);
-    for (auto filename : filenames)
-    { if (verbose) std::clog << "RECODE: Recoding data file " << filename << std::endl;
-      int nCasesWritten = rewrite_predictor_file(inputDataDir+filename, selector, outputDataDir + filename);
-      if (nCasesWritten != nObsSelected)
-      { std::cerr << "ERROR: Number cases written for " << filename << " was " << nCasesWritten
-		  << " != " << nObsSelected << std::endl;
-	return -11;
-      }
-    }
-    return 0;
+    selectorFile << nObsSelected << " " << selector.size() << std::endl;
+    for(bool b : selector)
+      selectorFile << " " << ((b) ? '1' : '0');
+    selectorFile << std::endl;
+    for(size_t i=0; i<selector.size(); ++i)
+      if(selector[i]) selectorFile << ' ' << i+1;   // 1 origin line indices
+    selectorFile << std::endl;
   }
 }
 
@@ -283,67 +271,8 @@ write_binary_response(std::string word0, std::string word1, std::string inputDir
   return selector;
 }
 
-
-//     rewrite_predictor_file     rewrite_predictor_file     rewrite_predictor_file     rewrite_predictor_file
-int
-rewrite_predictor_file (std::string inputFile, std::vector<bool> const& selector, std::string outputFile)
-{
-  std::ifstream input (inputFile);
-  if (!input.good())
-  { std::cerr << "ERROR: Attempting to rewrite predictor; could not open file " << inputFile << std::endl;
-    return 0;
-  }
-  std::ofstream output (outputFile);
-  if (!output.good())
-  { std::cerr << "ERROR: In rewrite, could not open output file " << outputFile << std::endl;
-    return 0;
-  }
-  std::string line;
-  std::getline(input, line);    // copy first two lines
-  output << line << std::endl;
-  std::getline(input, line);
-  output << line << std::endl;
-  int count = 0;
-  for(int i=0; i<(int)selector.size(); ++i)
-  { float x;
-    input >> x;
-    if(selector[i])
-    { output << x << "\t";
-      ++count;
-    }
-  }
-  output << std::endl;   
-  
-  return count;
-}
-  
-
-
-//     files_in_directory     files_in_directory     files_in_directory     files_in_directory     files_in_directory
-std::vector<std::string>
-files_in_directory (std::string dir)
-{
-  DIR *dp;
-  struct dirent *dirp;
-  
-  std::vector<std::string> files;
-  if((dp  = opendir(dir.c_str())) == NULL)
-  { std::cerr << "Error(" << errno << ") opening " << dir << std::endl;
-    return files;
-  }
-  while ((dirp = readdir(dp)) != NULL)
-    files.push_back(std::string(dirp->d_name));
-  closedir(dp);
-  if (verbose)
-  { std::clog << "     Found the following files: " ;
-    for(auto f : files) std::clog << f << ",";
-    std::clog << std::endl;
-  }
-  return files;
-}
-
-
 //     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments       
+
 void
 parse_arguments(int argc, char** argv,
 		std::string& inputDir, std::string& word0, std::string& word1, std::string& wordListFileName, std::string& outputDir)

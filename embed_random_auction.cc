@@ -3,7 +3,7 @@
   Builds *RANDOM* eigenword dictionary with prior input from a given
   vocabulary.  Only does this for the eigenword fiels identified by
   embeds fields identified by "xxx_WORD" variable name.  Otherwise
-  encodes things like POS as actual categorical.
+  encodes things like POS as actual categorial.
 
   Input: Rectangular style (tab delimited, with uniform set of columns)
        Y        BGL      BGR   FF   FH         PV      
@@ -107,9 +107,10 @@ int main(int argc, char** argv)
   int    nEigenDim     (0);                 // use all that are found
   string outputDir     {"data_dir/"};
   bool   downcase      {false};
+  int    seed          {35241};
   parse_arguments(argc, argv, vocabFileName, nEigenDim, downcase, outputDir);
   if (outputDir[outputDir.size()-1]!='/') outputDir += "/";
-  std::clog << "embed_random_auction --vocab_file=" << vocabFileName 
+  std::clog << "embed_random_auction --seed " << seed << " --vocab_file=" << vocabFileName 
 	    << " --eigen_dim=" << nEigenDim << " --output_dir=" << outputDir;
   if (downcase) std::clog << " --downcase";
   std::clog << std::endl;
@@ -119,7 +120,7 @@ int main(int argc, char** argv)
   if (verbose) std::clog << tag << "Input vocabulary has " << vocabulary.size() << " words.\n";
 
   // build eigen dictionary
-  Text::SimpleEigenDictionary eigenDictionary = Text::make_random_simple_eigen_dictionary(nEigenDim, vocabulary);
+  Text::SimpleEigenDictionary eigenDictionary = Text::make_random_simple_eigen_dictionary(seed, nEigenDim, vocabulary);
   if (verbose) std::clog << tag << "Eigendictionary has " << eigenDictionary.size() << " words.\n";
   Text::compare_dictionary_to_vocabulary(eigenDictionary, vocabulary);
 
@@ -175,10 +176,10 @@ int main(int argc, char** argv)
     return 0;
   }
   shellFile << "#!/bin/sh"   << std::endl
-	    << "cat n_obs"  << std::endl
+	    << "cat _n_obs"  << std::endl
 	    << "cat " << responseName << std::endl;
   {
-    std::ofstream file (outputDir + "n_obs");
+    std::ofstream file (outputDir + "_n_obs");
     file << response.size() << std::endl;
   }
   {
@@ -335,7 +336,7 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
     shellFile << "cat " << varName << std::endl;
     std::ofstream file(outputDir + varName);
     file << varName << std::endl;
-    file << " role x stream missing original_stream" << bundleName << " indicator missing" << std::endl;
+    file << " role x stream missing originalstream " << bundleName << " indicator missing" << std::endl;
     for(size_t i=0; i<n-1; ++i)
     { if (isnan(coor[i][0]))
 	file << 1 << "\t";

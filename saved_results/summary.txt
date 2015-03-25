@@ -1,3 +1,14 @@
+1.5M s, 10k r, 200 d, random, spline 
+
+         of   in  for   to   on with
+  of   0.69 0.06 0.04 0.02 0.08 0.11
+  in   0.11 0.39 0.05 0.05 0.17 0.22
+  for  0.12 0.07 0.38 0.06 0.13 0.24
+  to   0.06 0.06 0.04 0.58 0.10 0.17
+  on   0.08 0.05 0.04 0.05 0.61 0.17
+  with 0.07 0.05 0.04 0.05 0.11 0.67
+
+
 1.5M s, 10k r, 200 d, dean, spline -- no so good
                                          
          of   in  for   to   on with     
