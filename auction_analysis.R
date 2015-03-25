@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e200r_r10k_spline/"
+patha <- "~/C/projects/prep_error/saved_results/n1500_e200p_r10k_spline/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -26,11 +26,12 @@ test  <- which(cv==0)
 train <- which(cv==1)                            # frequencies should match balancing frequency
 table( y.all[ train ] )
 
-table( y.all[ test ] )
+sort(table( y.all[ test ] ), decreasing=T)
 
 ## --------------------------------------------------------------
 ##     check one model
-one model: get the fitted values from a model
+## one model: get the fitted values from a model
+##
 Data.of <- read.delim(paste0(pathb,"of/model_data.txt"))
 names(Data.of); dim(Data.of)
 
@@ -70,9 +71,10 @@ for(i in 1:length(prepositions)) {
 }
 dim( Fits <- as.data.frame(Fits ) )
 dim(Preds <- as.data.frame(Preds) )
-names(Preds) <- names( Fits) <- paste0("fit_",prepositions)
+dim( Y    <- as.data.frame( Y   ) )
+names(Preds) <- names( Fits) <- names(Y) <- paste0("fit_",prepositions)
+
 dim(  Y   <- as.matrix(  Y  ) )  # Y is actual response in test
-colnames(Y) <-  prepositions
 Y <- prepositions[Y %*% (1:6)]
 
 ##     check that these counts matche C++ counts in train and test
@@ -88,6 +90,10 @@ colnames(Fits.tab) <- prepositions
 Fits.tab <- Fits.tab[prepositions,]      # arrange rows
 round(Fits.tab/50000,2)
 
+##         row probs in train
+s <- colSums(Fits.tab)
+round(t(t(Fits.tab)/s),2)
+
 ##         and in test
 choice <- apply(Preds[,1:length(prepositions)],1,which.max)
 Preds.tab <- table(Y,choice)
@@ -96,6 +102,9 @@ Preds.tab <- Preds.tab[prepositions,]
 s <- rowSums(Preds.tab)
 round((Preds.tab)/s,2)
 
+##         row probs
+s <- colSums(Preds.tab)
+round(t(t(Preds.tab)/s),2)
 
 ## -----------------------------------------------------------
 ##     entropy and errors
