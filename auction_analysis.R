@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e200p_r10k_spline/"
+patha <- "~/C/projects/prep_error/saved_results/n1500_e200r_r10k_error/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -32,28 +32,60 @@ sort(table( y.all[ test ] ), decreasing=T)
 ##     check one model
 ## one model: get the fitted values from a model
 ##
-Data.of <- read.delim(paste0(pathb,"of/model_data.txt"))
-names(Data.of); dim(Data.of)
+Data.with<- read.delim(paste0(pathb,"with/model_data.txt"))
+names(Data.with); dim(Data.with)
+
+##  try to fit the model
+Data.with <- Data.with[,-(1:3)];           # remove the fit
+spline    <- Data.with[,825]
+Data.with <- Data.with[,-825]              # remove spline
+regr <- lm(Y_with ~ . , data = Data.with)
+
+y <- Data.with$Y_with
+x <- fitted(regr)
+i <- sample(1:99999,20000)
+plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
+summary( regr <-  lm(y ~ x) ); mean(y); mean(x)
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit <- smooth.spline(y[i] ~ x[i], df=7)
+lines(ss.fit,col='red')  # very nicely calibrated at this point
+
+##     what happens if smooth residual
+resid <- residuals(regr)
+plot(x[i],resid[i], xlab="Model Fit Y^", ylab="Residuals")
+ss.res <- smooth.spline(resid ~ x, df=7)
+fit.res <- fitted(ss.res)
+lines(ss.res,col='red')
+
+##     shift preds by model fit to residuals
+xp <- x + fit.res
+plot(xp[i],y[i], xlab="Calibrated Fit", ylab="Y")
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit2 <- smooth.spline(xp,y, df=7)
+lines(ss.fit2,col='red')
+mean(y-xp)  # much closer to 0
+
 
 ##     check cases match between internal/external cv indicators
-n.est <- sum(Data.of[,"Role"]=="est")
-table(Data.of[1:n.est,"Y_of"], y.all[train])
+##     first are in order, validation/test are inverted order
+n.est <- sum(Data.with[,"Role"]=="est")
+table(Data.with[1:n.est,"Y_with"], y.all[train])
 
-n.val <- sum(Data.of[,"Role"]=="val")
-table(Data.of[(n.est+1):nrow(Data.of),"Y_of"], y.all[test])
+n.val <- sum(Data.with[,"Role"]=="val")
+table(Data.with[nrow(Data.with):(n.est+1),"Y_with"], y.all[test]) 
 
 ##     labeling of words; means of fit by word
-table(0.5 < Data.of[1:n.est,"Fit"], y.all[train])
-tapply(Data.of[1:n.est,"Fit"], y.all[train], mean)
+table(0.5 < Data.with[1:n.est,"Fit"], y.all[train])
+tapply(Data.with[1:n.est,"Fit"], y.all[train], mean)
 
-table(0.5 < Data.of[(n.est+1):nrow(Data.of),"Fit"], y.all[test])
-tapply(Data.of[(n.est+1):nrow(Data.of),"Fit"], y.all[test], mean)
+table(0.5 < Data.with[(n.est+1):nrow(Data.with),"Fit"], y.all[test])
+tapply(Data.with[nrow(Data.with):(n.est+1),"Fit"], y.all[test], mean)
 
-##     only the right pattern in the training; not in test
-table(y.all[train],Data.of[1:n.train,"Y_of"])
-table(y.all[test],Data.of[(n.est+1):nrow(Data.of),"Y_of"])
+x <- Data.with[1:n.est,"Fit"]; y <- Data.with[1:n.est,"Y_with"]; s <- Data.with[1:n.est,5]
 
-
+i <- sample (1:n.est,20000)
+plot(y[i] ~ x[i])
+plot(s[i] ~ x[i])
 
 ## ----------------------------------------------------------------
 ##     join fits for all models ... just training
@@ -62,25 +94,33 @@ table(y.all[test],Data.of[(n.est+1):nrow(Data.of),"Y_of"])
 prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
 n.test  <- length(test)
-Y <-  Preds <- Fits  <- NULL
+Y.test <- Y.train <-  Preds <- Fits  <- NULL
 for(i in 1:length(prepositions)) {
     data <- read.delim(paste0(pathb,prepositions[i],"/model_data.txt"))
-    Fits[[i]]  <- data[1:n.train,"Fit"]
-    Preds[[i]] <- data[(n.train+1):(n.train+n.test),"Fit"]
-    Y    [[i]] <- data[(n.train+1):(n.train+n.test),paste0("Y_",prepositions[i])]
+    prp <- paste0("Y_",prepositions[i])
+    Fits[[i]]   <- data[1:n.train,"Fit"]
+    Y.train[[i]]<- data[1:n.train,prp]
+    Preds[[i]]  <- data[(n.train+1):(n.train+n.test),"Fit"]
+    Y.test[[i]] <- data[(n.train+1):(n.train+n.test),prp]
 }
-dim( Fits <- as.data.frame(Fits ) )
-dim(Preds <- as.data.frame(Preds) )
-dim( Y    <- as.data.frame( Y   ) )
-names(Preds) <- names( Fits) <- names(Y) <- paste0("fit_",prepositions)
+dim( Fits    <- as.data.frame(Fits ) )
+dim(Preds    <- as.data.frame(Preds) )
+dim( Y.train <- as.data.frame( Y.train  ) )
+dim( Y.test  <- as.data.frame( Y.test   ) )
+names(Y.test) <- names(Y.train) <- prepositions
+names(Preds)  <- names( Fits)   <- paste0("fit_",prepositions)
 
-dim(  Y   <- as.matrix(  Y  ) )  # Y is actual response in test
-Y <- prepositions[Y %*% (1:6)]
+##     means
+colMeans( Fits); colMeans(Y.train)
+colMeans(Preds); colMeans(Y.test )
+
+dim(  Y.test   <- as.matrix(  Y.test  ) )  
+Y.test <- prepositions[Y.test %*% (1:6)]
 
 ##     check that these counts matche C++ counts in train and test
 ##     have to use the shuffled preds, not y.all for test
 table(y.all[train]=="of",0.5< Fits$fit_of)
-table(Y   ,              0.5<Preds$fit_of)
+table(Y.test   ,         0.5<Preds$fit_of)
 
 ##     which prep gets largest probability
 ##        first in training
@@ -89,7 +129,6 @@ Fits.tab <- table(y.all[train],choice)
 colnames(Fits.tab) <- prepositions
 Fits.tab <- Fits.tab[prepositions,]      # arrange rows
 round(Fits.tab/50000,2)
-
 ##         row probs in train
 s <- colSums(Fits.tab)
 round(t(t(Fits.tab)/s),2)
@@ -158,15 +197,15 @@ i <- sample(1:nrow(Y),10000);
 
 ##     example [ slope(OF) != 1 ???]
 prp <- 'with'; fprp <- paste0("fit_",prp)
-plot(Y[i,prp] ~ Fits[i,fprp])
-summary( regr <-  lm(Y[,prp] ~ Fits[,fprp]) ); mean(Y[,prp]); mean(Fits[,fprp])
-abline (a=0,b=1,col='gray',lty=3)
-ss.fit <- smooth.spline(Y[i,prp] ~ Fits[i,fprp], df=7)
-lines(ss.fit,col='red')
-
 y <- Y[,prp]
 x <- Fits[,fprp]
-summary( regr <- lm(y ~ x) )
+
+plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
+summary( regr <-  lm(y ~ x) ); mean(y); mean(x)
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit <- smooth.spline(y[i] ~ x[i], df=7)
+lines(ss.fit,col='red')
+
 summary( cr   <- lm(y ~ poly(x,3,raw=T)))
 pred <- outer(x[i],0:3,'^') %*% coefficients(cr)
 points(x[i],pred)
@@ -175,22 +214,37 @@ points(pred,y[i],col='green')
 lines(smooth.spline(pred,y[i],df=6),col='green')
 
 ##     what happens if smooth residual
-resid <- residuals(regr)
-plot(Fits[i,fprp],resid[i])
-ss.res <- smooth.spline(resid[i] ~ Fits[i,fprp], df=7)
+resid <- y - x
+plot(x[i],resid[i], xlab="Model Fit Y^", ylab="Residuals")
+ss.res <- smooth.spline(resid[i] ~ x[i], df=7)
 fit.res <- fitted(ss.res)
 lines(ss.res,col='red')
 
 ##     shift preds by model fit to residuals
-x <- Fits[,fprp]+fit.res; y <- Y[,prp]
-plot(x[i],y[i])
+xp <- x + fit.res
+plot(xp[i],y[i], xlab="Calibrated Fit", ylab="Y")
 abline (a=0,b=1,col='gray',lty=3)
-ss.fit2 <- smooth.spline(x,y, df=7)
-lines(ss.fit,col='red')
+ss.fit2 <- smooth.spline(xp,y, df=7)
+lines(ss.fit2,col='red')
+mean(y-xp)  # much closer to 0
 
 ##     soft limits for 0/1
- plot(function(x){1+0.1*(1-exp(1-x))},xlim=c(1,4))
- plot(function(x){.1*(exp(x)-1)},xlim=c(-3,0))
+hi <- function(x){1+0.5*(1-exp(1-x))}
+lo <- function(x){.5*(exp(x)-1)}
+ 
+plot(hi,xlim=c(1,4))
+plot(lo,xlim=c(-3,0))
+
+fit <- function(x){
+	if(x<0) return(lo(x)) 
+	if(x>1) return(hi(x))
+	x
+}
+x <- seq(-3,4, length.out=100)	
+y <- mapply(fit,x)
+plot(x,y, xlim=c(-3,4))
+abline(a=0,b=1,lty=2,col='gray', main="Soft Limits on Predictions")
+
 
 ## -----------------------------------------------------------
 ##     multivariate calibration
