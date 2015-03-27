@@ -15,6 +15,7 @@ pathb <- patha
 cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
 system(cmd)
 
+
 ##     y.all has the list of all prepositions (text) but not aligned with test data 896008
 y.all <- scan(paste0(patha,"Y_all.txt"), what='char')
 
@@ -35,17 +36,19 @@ sort(table( y.all[ test ] ), decreasing=T)
 Data.with<- read.delim(paste0(pathb,"with/model_data.txt"))
 names(Data.with); dim(Data.with)
 
-##  try to fit the model
+##  try to fit the really big model
 Data.with <- Data.with[,-(1:3)];           # remove the fit
 spline    <- Data.with[,825]
 Data.with <- Data.with[,-825]              # remove spline
 regr <- lm(Y_with ~ . , data = Data.with)
 
+##   smaller data
+n.est <- 300000
 y <- Data.with$Y_with
-x <- fitted(regr)
-i <- sample(1:99999,20000)
+x <- Data.with$Fit
+i <- sample(1:n.est,20000)
 plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
-summary( regr <-  lm(y ~ x) ); mean(y); mean(x)
+summary( regr <-  lm(y ~ x) ); mean(y); mean(x)   # not happy that means do not match (soft-limits)
 abline (a=0,b=1,col='gray',lty=3)
 ss.fit <- smooth.spline(y[i] ~ x[i], df=7)
 lines(ss.fit,col='red')  # very nicely calibrated at this point
