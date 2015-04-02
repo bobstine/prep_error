@@ -107,7 +107,7 @@ int main(int argc, char** argv)
   int    nEigenDim     (0);                 // use all that are found
   string outputDir     {"data_dir/"};
   bool   downcase      {false};
-  int    seed          {35241};
+  int    seed          {12345}; // {35241};
   parse_arguments(argc, argv, vocabFileName, nEigenDim, downcase, outputDir);
   if (outputDir[outputDir.size()-1]!='/') outputDir += "/";
   std::clog << "embed_random_auction --seed " << seed << " --vocab_file=" << vocabFileName 

@@ -27,58 +27,8 @@ cleanup:
 
 all: auction_mult
 
-
-###########################################################################
-#
-#	Prepositions
-#
-#		- first convert into column form
-#               - probably want to edit tags.txt to pick subset to keep
-#
-###########################################################################
-
-# nLines = n sentences, nExamples of each preposition
-nlines =  1500000 
-nExamples = 50000
-nEigenDim =   200
-
-# raw_data_file = 7m-4d-Aug30-events.gz
-#	This file has a messy parse involving _ and . that confuse R
-#	sed -e 's/.*DY //' -e "s/#[-#A-Za-z0-9_?,=!;:\`\_\.\'$$]* / /g" -e 's/ $$//' $< | tr ' ' '\n' | sort | uniq > tag_count.txt
-#       Also set the -e -r options when run convert
-
-raw_data_file = subset5M.prepfeats.gz
-# raw_data_file = nyt-eng.prepfeats.gz
-#	Both files have a clean parse in format varname#word with POS info moved to separate columns
-#	       remove the prep     delete all past #
-#	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
-
-# --- prep_events	leading sentences from Joel
-prep_events.txt: ~/data/joel/$(raw_data_file)
-	echo Building base file 'prep_events.txt' from $(nlines) sentences.
-	gunzip -c $< | head -n $(nlines) > $@
-
-# --- all_tags, tags	stream identifiers, eg POS and WORD.  Only fields tagged as words get embedded
-# delete everything *except* tags ...
-# sed (removes leading prep) and (removes everything after a #); edit 'all_tags.txt' by hand to select specific tags to leave in tags.txt
-all_tags.txt : prep_events.txt Makefile
-	rm -f tag_count.txt all_tags.txt
-	wc -l $<
-	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
-	sed -e 's/^[ 0-9]*//' tag_count.txt | tail -n +2  > $@
-	echo " --- Must edit the file all_tags.txt to obtain a subset of tags to use. --- "
-
 convert: convert.o
 	$(GCC) $^ $(LDLIBS) -o  $@
-
-# --- rectangle data	data frame layout of words as a fixed n x p matrix of tokens and values
-#                       long tail or weird things labeled as prep, as well as capitalization
-rectangle_data.tsv: prep_events.txt tags.txt convert
-	./convert --tag_file=tags.txt < prep_events.txt > $@
-	head $@
-
-vocabulary.txt: rectangle_data.tsv    # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
-	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
 
 embed: embed.o
 	$(GCC) $^ $(LDLIBS) -o  $@
@@ -98,9 +48,61 @@ build_y_and_selector: build_y_and_selector.o
 filtered_stream: filtered_stream.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
+
+###########################################################################
+#
+#	Prepositions
+#
+#		- first convert into column form
+#               - probably want to edit tags.txt to pick subset to keep
+#
+###########################################################################
+
+# nLines = n sentences that use identified prepositions. nExamples of each preposition
+nlines =   900000 
+nExamples = 50000
+nEigenDim =   200
+
+# raw_data_file = 7m-4d-Aug30-events.gz
+#	This file has a messy parse involving _ and . that confuse R
+#	sed -e 's/.*DY //' -e "s/#[-#A-Za-z0-9_?,=!;:\`\_\.\'$$]* / /g" -e 's/ $$//' $< | tr ' ' '\n' | sort | uniq > tag_count.txt
+#       Also set the -e -r options when run convert
+
+raw_data_file = subset5M.prepfeats.gz
+# raw_data_file = nyt-eng.prepfeats.gz
+#	Both files have a clean parse in format varname#word with POS info moved to separate columns
+#	       remove the prep     delete all past #
+#	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
+
+# --- prep_events	extract nlines examples of the chosen prepositions
+prep_events.txt: ~/data/joel/$(raw_data_file)
+	echo Building base file 'prep_events.txt' from $(nlines) sentences.
+	gunzip -c $< | grep -P '^(for|in|of|on|to|with)\t' | head -n $(nlines) > $@
+
+# --- all_tags, tags	stream identifiers, eg POS and WORD.  Only fields tagged as words get embedded
+# delete everything *except* tags ...
+# sed (removes leading prep) and (removes everything after a #); edit 'all_tags.txt' by hand specific tags; leave these in tags.txt
+all_tags.txt : prep_events.txt Makefile
+	rm -f tag_count.txt all_tags.txt
+	wc -l $<
+	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
+	sed -e 's/^[ 0-9]*//' tag_count.txt | tail -n +2  > $@
+	echo " --- Must edit the file all_tags.txt to obtain a subset of tags to use. --- "
+
+# --- rectangle data	data frame layout of words as a fixed n x p matrix of tokens and values
+#                       long tail or weird things labeled as prep, as well as capitalization
+
+rectangle_data.tsv: prep_events.txt tags.txt convert
+	./convert --tag_file=tags.txt < prep_events.txt > $@
+	head $@
+
+vocabulary.txt: rectangle_data.tsv    # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
+	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
+
 # was putting in reverse Zipf order so later, more common words overwrite in dictionary
 # but stopped once started distinguising case; also had problems with tac of this file
 #	gunzip -c $< | tac > $@
+
 eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
 	gunzip -c $< > $@
@@ -108,18 +110,18 @@ eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 eigenwords.dean: $(HOME)/data/text/eigenwords/output_200_PHC.txt
 	ln -s $< $@
 
-eigenwords = eigenwords.dean
+eigenwords = eigenwords.en
 
 # --- auction data	streaming file layout of data from rectangle, with words embedded
 #      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
-hide-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
+auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
 	rm -rf $@
 	mkdir auction_data
 	./embed_auction --eigen_file=$(eigenwords) --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
 #     random version
-rand-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
+hide-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 	rm -rf $@
 	mkdir $@
 	./embed_random_auction --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
@@ -185,8 +187,8 @@ auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manuall
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, nExamples of each
-# prepositions = of
-prepositions = of in for to on with
+prepositions = with
+# prepositions = of in for to on with
 
 inDir = auction_data
 
@@ -200,7 +202,7 @@ multinomial: recode_data prepositions.txt auction_data
 	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
 
 $(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
-	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
+	cat $(multDir)/_n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
 
 resultsPath = auction_temp/
 multAuctionRounds = 10000
