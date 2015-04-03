@@ -213,7 +213,7 @@ write_simple_var(std::string varName, std::string attributes, std::vector<T> con
   file << varName    << std::endl;
   file << attributes << std::endl;
   for(size_t i=0; i<n-1; ++i) file << data[i] << "\t";  // no tab at end
-  file << data[n-1];
+  file << data[n-1] << std::endl;
 }
 
 void
@@ -342,8 +342,8 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
       else file << 0 << "\t";
     }
     if (isnan(coor[n-1][0]))
-      file << 1;
-    else file << 0;
+      file << 1 << std::endl;
+    else file << 0 << std::endl;
   }
   for(size_t d=0; d<nEigenDim; ++d)
   { std::string varName = bundleName + "_" + labels[d];
@@ -356,7 +356,7 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
     file << std::endl;
     if(nMissing == 0)
     { for(size_t i=0; i<n-1; ++i) file << coor[i][d] << "\t";  // no tab at end
-      file << coor[n-1][d];
+      file << coor[n-1][d] << std::endl;
     } else
     { double mean = sum[d]/(double)(n-nMissing);
       for(size_t i=0; i<n; ++i)
@@ -367,6 +367,7 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
 	  file << x;
 	if (i < n-1) file << "\t";
       }
+      file << std::endl;
     }
   }
 }

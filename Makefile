@@ -42,6 +42,9 @@ embed_random_auction: embed_random_auction.o
 recode_data: recode_data.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
+encode_response: encode_response.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
 build_y_and_selector: build_y_and_selector.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
@@ -58,26 +61,26 @@ filtered_stream: filtered_stream.o
 #
 ###########################################################################
 
-# nLines = n sentences that use identified prepositions. nExamples of each preposition
-nlines =   900000 
-nExamples = 50000
-nEigenDim =   200
+# nLines = n sentences that use identified prepositions.
+
+nLines =   500000 
+nEigenDim =   100
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
 #	sed -e 's/.*DY //' -e "s/#[-#A-Za-z0-9_?,=!;:\`\_\.\'$$]* / /g" -e 's/ $$//' $< | tr ' ' '\n' | sort | uniq > tag_count.txt
 #       Also set the -e -r options when run convert
-
-raw_data_file = subset5M.prepfeats.gz
 # raw_data_file = nyt-eng.prepfeats.gz
 #	Both files have a clean parse in format varname#word with POS info moved to separate columns
 #	       remove the prep     delete all past #
 #	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
 
-# --- prep_events	extract nlines examples of the chosen prepositions
+raw_data_file = subset5M.prepfeats.gz
+
+# --- prep_events	extract nLines examples of the chosen prepositions
 prep_events.txt: ~/data/joel/$(raw_data_file)
-	echo Building base file 'prep_events.txt' from $(nlines) sentences.
-	gunzip -c $< | grep -P '^(for|in|of|on|to|with)\t' | head -n $(nlines) > $@
+	echo Building base file 'prep_events.txt' from $(nLines) sentences.
+	gunzip -c $< | grep -P '^(for|in|of|on|to|with)\t' | head -n $(nLines) > $@
 
 # --- all_tags, tags	stream identifiers, eg POS and WORD.  Only fields tagged as words get embedded
 # delete everything *except* tags ...
@@ -187,38 +190,40 @@ auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manuall
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, nExamples of each
-prepositions = with
-# prepositions = of in for to on with
+prepositions = of in for to on with
+nExamples = 40000
 
 inDir = auction_data
 
-multDir = $(inDir)/multinomial
+multDir = $(inDir)
 
-#	recode data builds Y_all.txt for multinomials; since target is phony, run *by hand*
-multinomial: recode_data prepositions.txt auction_data
-	rm -rf $(multDir); mkdir $(multDir)
-	sed "3d" $(inDir)/index.sh > $(multDir)/X.sh
-	chmod +x $(multDir)/X.sh
-	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
+#	encode_response builds Y_all.txt along with desire multinomial indicators Y_xxx
+$(multDir)/Y_all.txt: encode_response prepositions.txt
+	./encode_response --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
 
 $(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
 	cat $(multDir)/_n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
 
+$(multDir)/X.sh: $(inDir)/index.sh
+	rm -rf $@
+	sed "3d" $(inDir)/index.sh > $@
+	chmod +x $@
+
 resultsPath = auction_temp/
 multAuctionRounds = 10000
 
-$(multDir)/X : $(multDir)/X.sh 
-	rm -rf $@
-	cd $(multDir); ./X.sh > X
-
-$(resultsPath)%: recode_data prepositions.txt $(multDir)/X $(multDir)/cv_indicator # target that runs auction for each prep (% symbol)
+$(resultsPath)%: $(multDir)/Y_all.txt $(multDir)/X.sh $(multDir)/cv_indicator # target that runs auction for each prep (% symbol)
 	mkdir -p $(resultsPath)
 	mkdir -p $@
-	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
+	rm -rf $(multDir)/Xpipe_$*
+	mkfifo $(multDir)/Xpipe_$*
+	(cd $(multDir); ./X.sh > Xpipe_$*) &
+	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/Xpipe_$* -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
+	rm -rf $(multDir)/Xpipe_$*
 
-run_mult_auction: $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
-	cp $(multDir)/cv_indicator $(resultsPath)/cv_indicator
-	cp $(multDir)/Y_all.txt $(resultsPath)/Y_all.txt
+run_mult_auction: $(resultsPath)of # $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
+	cp $(multDir)/cv_indicator $(resultsPath)cv_indicator
+	cp $(multDir)/Y_all.txt $(resultsPath)Y_all.txt
 
 ###########################################################################
 # ---  extract sentences with hi/low entropy  (find in R in auction_analysis.R)
