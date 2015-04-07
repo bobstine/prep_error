@@ -2,6 +2,7 @@
 *.dd
 .Rhistory
 convert
+encode_response
 embed_auction
 embed_random_auction
 recode_data
@@ -21,7 +22,7 @@ embedded_data.txt
 auction_data
 saved_results
 auction_run
-auction_temp
+auction_temp*
 auction_test
 auction_test_data
 fits.Rdata
