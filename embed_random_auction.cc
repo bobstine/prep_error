@@ -21,7 +21,7 @@
 
 #include "read_utils.h"
 #include "simple_vocabulary.h"
-#include "simple_eigen_dict.h"
+#include "simple_eigenword_dictionary.h"
 
 #include <getopt.h>
 #include <cmath>       // nan

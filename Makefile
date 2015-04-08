@@ -12,7 +12,7 @@ PROJECT_NAME = prep_error
 
 USES = utils text
 
-OPT = -O3 -std=c++11
+OPT = -Ofast -mfpmath=sse -msse3 -m64 -march=native
 
 level_1 = convert.o embed_random_auction.o embed_auction.o recode_data.o    embed.o build_y_and_selector.o filtered_stream.o
 level_2 =
@@ -63,8 +63,8 @@ filtered_stream: filtered_stream.o
 
 # nLines = n sentences that use identified prepositions.
 
-nLines =   500000 
-nEigenDim =   100
+nLines =   1000000 
+nEigenDim =    200
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
@@ -97,10 +97,11 @@ all_tags.txt : prep_events.txt Makefile
 
 rectangle_data.tsv: prep_events.txt tags.txt convert
 	./convert --tag_file=tags.txt < prep_events.txt > $@
-	head $@
+	head -n 5 $@
 
 vocabulary.txt: rectangle_data.tsv    # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
 	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
+	wc -l $@
 
 # was putting in reverse Zipf order so later, more common words overwrite in dictionary
 # but stopped once started distinguising case; also had problems with tac of this file
@@ -117,6 +118,7 @@ eigenwords = eigenwords.en
 
 # --- auction data	streaming file layout of data from rectangle, with words embedded
 #      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
+#      not fast, but not glacial either (20 mins for 1M cases with +-3 ewords and 200 dims)
 auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
 	rm -rf $@
 	mkdir auction_data
@@ -191,7 +193,7 @@ auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manuall
 
 # only big 6, nExamples of each
 prepositions = of in for to on with
-nExamples = 40000
+nExamples = 50000
 
 inDir = auction_data
 
@@ -210,7 +212,7 @@ $(multDir)/X.sh: $(inDir)/index.sh
 	chmod +x $@
 
 resultsPath = auction_temp/
-multAuctionRounds = 10000
+multAuctionRounds = 25000
 
 $(resultsPath)%: $(multDir)/Y_all.txt $(multDir)/X.sh $(multDir)/cv_indicator # target that runs auction for each prep (% symbol)
 	mkdir -p $(resultsPath)
@@ -221,7 +223,7 @@ $(resultsPath)%: $(multDir)/Y_all.txt $(multDir)/X.sh $(multDir)/cv_indicator # 
 	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/Xpipe_$* -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
 	rm -rf $(multDir)/Xpipe_$*
 
-run_mult_auction: $(resultsPath)of # $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
+run_mult_auction: $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
 	cp $(multDir)/cv_indicator $(resultsPath)cv_indicator
 	cp $(multDir)/Y_all.txt $(resultsPath)Y_all.txt
 

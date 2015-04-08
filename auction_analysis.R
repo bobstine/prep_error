@@ -4,7 +4,7 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n1500_e200r_r10k_error/"
+patha <- "~/C/projects/prep_error/saved_results/n500_e100p_r25k_fast/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -27,7 +27,7 @@ test  <- which(cv==0)
 train <- which(cv==1)                            # frequencies should match balancing frequency
 table( y.all[ train ] )
 
-sort(table( y.all[ test ] ), decreasing=T)
+sort(table( y.all[ test ] ), decreasing=T)       # frequencies in test set will vary
 
 ## --------------------------------------------------------------
 ##     check one model
@@ -68,7 +68,6 @@ ss.fit2 <- smooth.spline(xp,y, df=7)
 lines(ss.fit2,col='red')
 mean(y-xp)  # much closer to 0
 
-
 ##     check cases match between internal/external cv indicators
 ##     first are in order, validation/test are inverted order
 n.est <- sum(Data.with[,"Role"]=="est")
@@ -92,7 +91,7 @@ plot(s[i] ~ x[i])
 
 ## ----------------------------------------------------------------
 ##     join fits for all models ... just training
-##
+## --------------------------------------------------------------
 
 prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
@@ -131,7 +130,8 @@ choice <- apply(Fits[,1:length(prepositions)],1,which.max)
 Fits.tab <- table(y.all[train],choice)
 colnames(Fits.tab) <- prepositions
 Fits.tab <- Fits.tab[prepositions,]      # arrange rows
-round(Fits.tab/50000,2)
+round(Fits.tab/40000,2)
+
 ##         row probs in train
 s <- colSums(Fits.tab)
 round(t(t(Fits.tab)/s),2)
