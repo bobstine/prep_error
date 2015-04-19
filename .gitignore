@@ -1,14 +1,16 @@
 *.o
 *.dd
 .Rhistory
+build_y_and_selector
 convert
 encode_response
 embed_auction
 embed_random_auction
-recode_data
 embed_auction
-build_y_and_selector
+filter_sentences
 filtered_stream
+recode_data
+nlp_auction
 prep_events.txt
 prepositions.txt
 vocabulary.txt
@@ -17,6 +19,7 @@ tag_count.txt
 reversed_eigenwords.en
 eigenwords.en
 eigenwords.dean
+eigenwords.txt
 rectangle_data.tsv
 embedded_data.txt
 auction_data

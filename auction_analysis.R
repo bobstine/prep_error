@@ -4,7 +4,9 @@
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
 
-patha <- "~/C/projects/prep_error/saved_results/n500_e100p_r25k_fast/"
+patha <- "~/C/projects/prep_error/saved_results/n1000_e200p_r25k_poly_fast/"
+
+patha <- "~/C/projects/prep_error/auction_temp/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -12,8 +14,8 @@ pathb <- patha
 # pathb <- "~/C/projects/prep_error/auction_temp/"
 
 ##     get data to local machine
-cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
-system(cmd)
+# cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
+# system(cmd)
 
 
 ##     y.all has the list of all prepositions (text) but not aligned with test data 896008
@@ -90,7 +92,7 @@ plot(y[i] ~ x[i])
 plot(s[i] ~ x[i])
 
 ## ----------------------------------------------------------------
-##     join fits for all models ... just training
+##     join fits for all models
 ## --------------------------------------------------------------
 
 prepositions <- c("of","in","for","to","on","with")
@@ -119,10 +121,10 @@ colMeans(Preds); colMeans(Y.test )
 dim(  Y.test   <- as.matrix(  Y.test  ) )  
 Y.test <- prepositions[Y.test %*% (1:6)]
 
-##     check that these counts matche C++ counts in train and test
+##     check that these counts match C++ counts in train and test
 ##     have to use the shuffled preds, not y.all for test
 table(y.all[train]=="of",0.5< Fits$fit_of)
-table(Y.test   ,         0.5<Preds$fit_of)
+table(Y.test=="of"      ,0.5<Preds$fit_of)
 
 ##     which prep gets largest probability
 ##        first in training
@@ -130,7 +132,7 @@ choice <- apply(Fits[,1:length(prepositions)],1,which.max)
 Fits.tab <- table(y.all[train],choice)
 colnames(Fits.tab) <- prepositions
 Fits.tab <- Fits.tab[prepositions,]      # arrange rows
-round(Fits.tab/40000,2)
+round(Fits.tab/50000,2)
 
 ##         row probs in train
 s <- colSums(Fits.tab)
@@ -138,7 +140,7 @@ round(t(t(Fits.tab)/s),2)
 
 ##         and in test
 choice <- apply(Preds[,1:length(prepositions)],1,which.max)
-Preds.tab <- table(Y,choice)
+Preds.tab <- table(Y.test,choice)
 colnames(Preds.tab) <- prepositions
 Preds.tab <- Preds.tab[prepositions,]
 s <- rowSums(Preds.tab)
