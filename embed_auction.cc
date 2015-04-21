@@ -19,11 +19,11 @@
 */
 
 #include "read_utils.h"
+#include "nan_utils.h"
 #include "simple_vocabulary.h"
-#include "simple_eigen_dict.h"
+#include "simple_eigenword_dictionary.h"
 
 #include <getopt.h>
-#include <cmath>       // nan
 
 #include <iostream>
 #include <fstream>
@@ -46,7 +46,7 @@ void
 write_categorical_bundle(std::string fieldName, std::vector<std::string> const& data, std::ofstream &shellStream, std::string outputDirectory);
 
 void
-write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, Text::SimpleEigenDictionary const& eigenDictionary,
+write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, Text::SimpleEigenwordDictionary const& eigenDictionary,
 		       std::ofstream &shellStream, std::string outputDirectory);
 
 
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
   if (verbose) std::clog << tag << "Input vocabulary has " << vocabulary.size() << " words.\n";
 
   // build eigen dictionary
-  Text::SimpleEigenDictionary eigenDictionary = Text::make_simple_eigen_dictionary(eigenFileName, nEigenDim, vocabulary, downcase);
+  Text::SimpleEigenwordDictionary eigenDictionary = Text::make_simple_eigenword_dictionary(eigenFileName, nEigenDim, vocabulary, downcase);
   if (verbose) std::clog << tag << "Eigendictionary has " << eigenDictionary.size() << " words.\n";
   Text::compare_dictionary_to_vocabulary(eigenDictionary, vocabulary);
 
@@ -213,7 +213,7 @@ write_simple_var(std::string varName, std::string attributes, std::vector<T> con
   file << varName    << std::endl;
   file << attributes << std::endl;
   for(size_t i=0; i<n-1; ++i) file << data[i] << "\t";  // no tab at end
-  file << data[n-1];
+  file << data[n-1] << std::endl;
 }
 
 void
@@ -282,7 +282,7 @@ write_categorical_bundle(std::string fieldName, std::vector<std::string> const& 
 
 //     write_eigenword_bundle     write_eigenword_bundle     write_eigenword_bundle     write_eigenword_bundle
 void
-write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, Text::SimpleEigenDictionary const& eigenDictionary,
+write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& data, size_t nEigenDim, Text::SimpleEigenwordDictionary const& eigenDictionary,
 		       std::ofstream& shellStream, std::string outputDirectory)
 {
   using std::string;
@@ -294,14 +294,12 @@ write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& da
   for (size_t i=0; i<data.size(); ++i)
   { string token = data[i];
     bool missing = false;
-    if (token == "NA")
+    if (token == "NA")                                        // a simple dict assigns nan to 'NA' token
     { ++nMissing;
       missing = true;
     }
     else if (eigenDictionary.count(token) == 0)
-    { // if (verbose) std::clog << "WARNING: Token " << token << " was not found. Treating as OOV.\n";
-      token = "OOV";
-    }
+      token = "OOV";                                          // if not found, label as OOV
     eigenCoord[i] = eigenDictionary.find(token)->second;  
     if (!missing) for(size_t j=0; j<nEigenDim; ++j) sum[j] += (double) eigenCoord[i][j];
   }
@@ -317,7 +315,8 @@ write_eigenword_bundle(std::string fieldName, std::vector<std::string> const& da
 //     write_bundle     write_bundle     write_bundle     write_bundle     write_bundle     write_bundle
 //
 //  write the several dummy variables to represent a single categorical variable or
-//  the bundle of coordinates for an eigenword embedding
+//  the bundle of coordinates for an eigenword embedding; encodes missing using mean
+//  computed from observed sum
 //
 
 template<class T1, class T2>
@@ -337,13 +336,13 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
     file << varName << std::endl;
     file << " role x stream missing originalstream " << bundleName << " indicator missing" << std::endl;
     for(size_t i=0; i<n-1; ++i)
-    { if (isnan(coor[i][0]))
+    { if (IsNanf((float)coor[i][0]))
 	file << 1 << "\t";
       else file << 0 << "\t";
     }
-    if (isnan(coor[n-1][0]))
-      file << 1;
-    else file << 0;
+    if (IsNanf((float)coor[n-1][0]))
+      file << 1 << std::endl;
+    else file << 0 << std::endl;
   }
   for(size_t d=0; d<nEigenDim; ++d)
   { std::string varName = bundleName + "_" + labels[d];
@@ -356,17 +355,18 @@ write_bundle(std::string bundleName, std::string streamName, std::string commonA
     file << std::endl;
     if(nMissing == 0)
     { for(size_t i=0; i<n-1; ++i) file << coor[i][d] << "\t";  // no tab at end
-      file << coor[n-1][d];
+      file << coor[n-1][d] << std::endl;
     } else
     { double mean = sum[d]/(double)(n-nMissing);
       for(size_t i=0; i<n; ++i)
       { float x = (float)coor[i][d];
-	if (isnan(x))
+	if (IsNan(x))
 	  file << mean;
 	else
 	  file << x;
 	if (i < n-1) file << "\t";
       }
+      file << std::endl;
     }
   }
 }

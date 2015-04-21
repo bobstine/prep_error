@@ -12,7 +12,7 @@ PROJECT_NAME = prep_error
 
 USES = utils text
 
-OPT = -O3 -std=c++11
+OPT = -Ofast -mfpmath=sse -msse3 -m64 -march=native
 
 level_1 = convert.o embed_random_auction.o embed_auction.o recode_data.o    embed.o build_y_and_selector.o filtered_stream.o
 level_2 =
@@ -20,12 +20,42 @@ level_3 =
 
 cleanup:
 	rm -f prep_events.txt rectangle_data.txt
-	rm -f vocabulary.txt embedded_data.txt 	# reversed_eigenwords.en 
+	rm -f vocabulary.txt embedded_data.txt
 	rm -rf auction_data auction_run auction_temp
 
 .PHONY: all test
 
 all: auction_mult
+
+filter_sentences: filter_sentences.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+convert: convert.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+embed: embed.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+embed_auction: embed_auction.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+embed_random_auction: embed_random_auction.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+stream_auction: stream_auction.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+recode_data: recode_data.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+encode_response: encode_response.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+build_y_and_selector: build_y_and_selector.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
+filtered_stream: filtered_stream.o
+	$(GCC) $^ $(LDLIBS) -o  $@
 
 
 ###########################################################################
@@ -37,30 +67,34 @@ all: auction_mult
 #
 ###########################################################################
 
-# nLines = n sentences, nExamples of each preposition
-nlines =  1500000 
-nExamples = 50000
-nEigenDim =   200
+# nSentencesEach, later split into train and test
+
+#nSentencesEach = 100100
+nSentencesEach = 40000
 
 # raw_data_file = 7m-4d-Aug30-events.gz
 #	This file has a messy parse involving _ and . that confuse R
 #	sed -e 's/.*DY //' -e "s/#[-#A-Za-z0-9_?,=!;:\`\_\.\'$$]* / /g" -e 's/ $$//' $< | tr ' ' '\n' | sort | uniq > tag_count.txt
 #       Also set the -e -r options when run convert
-
-raw_data_file = subset5M.prepfeats.gz
 # raw_data_file = nyt-eng.prepfeats.gz
 #	Both files have a clean parse in format varname#word with POS info moved to separate columns
 #	       remove the prep     delete all past #
 #	sed -e 's/^[^\t]*\t//' -e 's/#[^\t]*//g' $< | tr '\t' '\n' | sort | uniq -c > tag_count.txt
 
-# --- prep_events	leading sentences from Joel
-prep_events.txt: ~/data/joel/$(raw_data_file)
-	echo Building base file 'prep_events.txt' from $(nlines) sentences.
-	gunzip -c $< | head -n $(nlines) > $@
+raw_data_file = subset5M.prepfeats.gz
+
+# --- prep_events	extract nLines examples of the chosen prepositions
+#	gunzip -c $< | grep -P '^(for|in|of|on|to|with)\t' | head -n $(nLines) > $@
+
+prep_events.txt: ~/data/joel/$(raw_data_file) filter_sentences
+	echo Building base file 'prep_events.txt' from $(nSentencesEach) for each preposition.
+	gunzip -c $< | ./filter_sentences -n $(nSentencesEach) --wordlist "prepositions_6.txt" > $@
+	wc -l $@
 
 # --- all_tags, tags	stream identifiers, eg POS and WORD.  Only fields tagged as words get embedded
-# delete everything *except* tags ...
-# sed (removes leading prep) and (removes everything after a #); edit 'all_tags.txt' by hand to select specific tags to leave in tags.txt
+#        deletes everything *except* tags: sed (removes leading prep) and (removes everything after a #)
+#        edit 'all_tags.txt' by hand specific tags; leave these in tags.txt
+
 all_tags.txt : prep_events.txt Makefile
 	rm -f tag_count.txt all_tags.txt
 	wc -l $<
@@ -68,39 +102,22 @@ all_tags.txt : prep_events.txt Makefile
 	sed -e 's/^[ 0-9]*//' tag_count.txt | tail -n +2  > $@
 	echo " --- Must edit the file all_tags.txt to obtain a subset of tags to use. --- "
 
-convert: convert.o
-	$(GCC) $^ $(LDLIBS) -o  $@
-
 # --- rectangle data	data frame layout of words as a fixed n x p matrix of tokens and values
 #                       long tail or weird things labeled as prep, as well as capitalization
+
 rectangle_data.tsv: prep_events.txt tags.txt convert
 	./convert --tag_file=tags.txt < prep_events.txt > $@
-	head $@
+	touch eigenwords.en 
+	head -n 5 $@
 
 vocabulary.txt: rectangle_data.tsv    # wipe out header line at start, blank at end (mixes in POS tags!... oh well)
 	tail -n +2 $< | tr '\t' '\n' | tr '=' '\n' | sort | uniq | tail -n +2 > $@
-
-embed: embed.o
-	$(GCC) $^ $(LDLIBS) -o  $@
-
-embed_auction: embed_auction.o
-	$(GCC) $^ $(LDLIBS) -o  $@
-
-embed_random_auction: embed_random_auction.o
-	$(GCC) $^ $(LDLIBS) -o  $@
-
-recode_data: recode_data.o
-	$(GCC) $^ $(LDLIBS) -o  $@
-
-build_y_and_selector: build_y_and_selector.o
-	$(GCC) $^ $(LDLIBS) -o  $@
-
-filtered_stream: filtered_stream.o
-	$(GCC) $^ $(LDLIBS) -o  $@
+	wc -l $@
 
 # was putting in reverse Zipf order so later, more common words overwrite in dictionary
 # but stopped once started distinguising case; also had problems with tac of this file
 #	gunzip -c $< | tac > $@
+
 eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
 	gunzip -c $< > $@
@@ -108,18 +125,29 @@ eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 eigenwords.dean: $(HOME)/data/text/eigenwords/output_200_PHC.txt
 	ln -s $< $@
 
-eigenwords = eigenwords.dean
+nEigenDim    = 50   # careful! need to manually sync
+nEigenCutDim = 51
+eigenwords.txt: eigenwords.en
+	cut -f1-$(nEigenCutDim) -d' ' $< > $@
 
-# --- auction data	streaming file layout of data from rectangle, with words embedded
+# --- auction data	streaming file layout of data from rectangle format, with words embedded
 #      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
-hide-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
+#      not fast, but not glacial either (20 mins for 1M cases with +-3 ewords and 200 dims)
+
+hidden-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
 	rm -rf $@
 	mkdir auction_data
 	./embed_auction --eigen_file=$(eigenwords) --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
+auction_data: stream_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
+	rm -rf $@
+	mkdir $@
+	./stream_auction -o $@ < rectangle_data.tsv
+	chmod +x $@/index.sh
+
 #     random version
-rand-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
+hide-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 	rm -rf $@
 	mkdir $@
 	./embed_random_auction --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
@@ -147,7 +175,7 @@ auction_test_data: embed_auction rect_test.tsv eigenwords.en # vocabulary.txt us
 	head -n $(nTestCases) rect_test.tsv | ./embed_auction --eigen_file=eigenwords.en --eigen_dim $(nTestEigenDim) --vocab=vocabulary.txt  -o $@
 	chmod +x $@/index.sh
 
-theAuction = ../../auctions/auction
+theAuction = ../../auctions/nlp_auction
 
 .PHONY: run_auction run_mult_auction multinomial binomial
 
@@ -185,38 +213,44 @@ auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manuall
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, nExamples of each
-# prepositions = of
 prepositions = of in for to on with
+nExamples = 20000
+nMinCat = 1000
 
 inDir = auction_data
 
-multDir = $(inDir)/multinomial
+multDir = $(inDir)
 
-#	recode data builds Y_all.txt for multinomials; since target is phony, run *by hand*
-multinomial: recode_data prepositions.txt auction_data
-	rm -rf $(multDir); mkdir $(multDir)
-	sed "3d" $(inDir)/index.sh > $(multDir)/X.sh
-	chmod +x $(multDir)/X.sh
-	./recode_data --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
+#	build Y_all.txt and multinomial indicators Y_xxx
+$(multDir)/Y_all.txt: encode_response prepositions.txt
+	./encode_response --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
 
 $(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
-	cat $(multDir)/n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
+	cat $(multDir)/_n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
 
-resultsPath = auction_temp/
-multAuctionRounds = 10000
-
-$(multDir)/X : $(multDir)/X.sh 
+$(multDir)/X.sh: $(inDir)/index.sh
 	rm -rf $@
-	cd $(multDir); ./X.sh > X
+	sed "3d" $(inDir)/index.sh > $@
+	chmod +x $@
 
-$(resultsPath)%: recode_data prepositions.txt $(multDir)/X $(multDir)/cv_indicator # target that runs auction for each prep (% symbol)
+auctionOptions = --rounds=500 --alpha=2 --protection=3 --cal_gap=25
+textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=$(nMinCat)
+resultsPath = auction_temp/
+
+$(resultsPath)%: eigenwords.txt $(multDir)/Y_all.txt $(multDir)/X.sh $(multDir)/cv_indicator # target that runs auction for each prep (% symbol)
 	mkdir -p $(resultsPath)
 	mkdir -p $@
-	$(theAuction) -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/X -r $(multAuctionRounds) -a 2 -p 3 --calibration_gap=20 --debug=1 --output_x=0 --output_path=$@
+	rm -rf $(multDir)/Xpipe_$*
+	# mkfifo $(multDir)/Xpipe_$*
+	# (cd $(multDir); ./X.sh > Xpipe_$*) &
+	cd $(multDir); ./X.sh > Xpipe_$*
+	./nlp_auction -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/Xpipe_$* $(textOptions) $(auctionOptions) --debug=2 --output_x=0 --output_path=$@
+	# rm -rf $(multDir)/Xpipe_$*
 
-run_mult_auction: $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
-	cp $(multDir)/cv_indicator $(resultsPath)/cv_indicator
-	cp $(multDir)/Y_all.txt $(resultsPath)/Y_all.txt
+run_auction: $(resultsPath)of # $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
+	cp $(multDir)/cv_indicator $(resultsPath)cv_indicator
+	cp $(multDir)/Y_all.txt $(resultsPath)Y_all.txt
+
 
 ###########################################################################
 # ---  extract sentences with hi/low entropy  (find in R in auction_analysis.R)
