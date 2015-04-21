@@ -35,14 +35,8 @@ sort(table( y.all[ test ] ), decreasing=T)       # frequencies in test set will 
 ##     check one model
 ## one model: get the fitted values from a model
 ##
-Data.with<- read.delim(paste0(pathb,"with/model_data.txt"))
+Data.with<- read.delim(paste0(pathb,"with.before/model_data.txt"))
 names(Data.with); dim(Data.with)
-
-##  try to fit the really big model
-Data.with <- Data.with[,-(1:3)];           # remove the fit
-spline    <- Data.with[,825]
-Data.with <- Data.with[,-825]              # remove spline
-regr <- lm(Y_with ~ . , data = Data.with)
 
 ##   smaller data
 n.est <- 300000
@@ -51,12 +45,20 @@ x <- Data.with$Fit
 i <- sample(1:n.est,20000)
 plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
 summary( regr <-  lm(y ~ x) ); mean(y); mean(x)   # not happy that means do not match (soft-limits)
+>>>>>>> 3a5c69885880fbf71e5d6c44e61f2c923f1bb43d
 abline (a=0,b=1,col='gray',lty=3)
-ss.fit <- smooth.spline(y[i] ~ x[i], df=7)
-lines(ss.fit,col='red')  # very nicely calibrated at this point
+ss.fit <- smooth.spline(y ~ x, df=7)
+lines(ss.fit,col='red')
+
+##     is spline calibrated?
+x2 <- fitted(ss.fit)
+plot(x2[i],y[i])
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit2 <- smooth.spline(y ~ x2, df=7)
+lines(ss.fit,col='red')
 
 ##     what happens if smooth residual
-resid <- residuals(regr)
+resid <- Data.with$Residual
 plot(x[i],resid[i], xlab="Model Fit Y^", ylab="Residuals")
 ss.res <- smooth.spline(resid ~ x, df=7)
 fit.res <- fitted(ss.res)
@@ -76,7 +78,7 @@ n.est <- sum(Data.with[,"Role"]=="est")
 table(Data.with[1:n.est,"Y_with"], y.all[train])
 
 n.val <- sum(Data.with[,"Role"]=="val")
-table(Data.with[nrow(Data.with):(n.est+1),"Y_with"], y.all[test]) 
+table(Data.with[nrow(Data.with):(n.est+1),"Y_with"], y.all[test])
 
 ##     labeling of words; means of fit by word
 table(0.5 < Data.with[1:n.est,"Fit"], y.all[train])
@@ -118,7 +120,7 @@ names(Preds)  <- names( Fits)   <- paste0("fit_",prepositions)
 colMeans( Fits); colMeans(Y.train)
 colMeans(Preds); colMeans(Y.test )
 
-dim(  Y.test   <- as.matrix(  Y.test  ) )  
+dim(  Y.test   <- as.matrix(  Y.test  ) )
 Y.test <- prepositions[Y.test %*% (1:6)]
 
 ##     check that these counts match C++ counts in train and test
@@ -170,7 +172,7 @@ bin <- 1+rowSums(outer(entropy.fit,q,'>'))
 correct <- prepositions[choice] == y.all[train]
 
 pct <- tapply(correct,bin,mean)
-plot((1:100)/100,pct, xlab="Entropy Percentile",ylab="Pct Correct", 
+plot((1:100)/100,pct, xlab="Entropy Percentile",ylab="Pct Correct",
       main="Accuracy drops as entropy of predictions increases")
 
 ##     low entropy (easy to predict; run from C makefile)
@@ -178,14 +180,14 @@ o <- order(entropy.fit, decreasing=FALSE)
 
 low <- sort(o[1:100])[1:10]   # sort so don't have to read too many lines to find
 entropy.fit[low]
-d.low <- data.frame(line=train[low], truth=(y.all[train])[low], choice=choice[low], Fit=round(Fits[low,],2)); 
+d.low <- data.frame(line=train[low], truth=(y.all[train])[low], choice=choice[low], Fit=round(Fits[low,],2));
 d.low
 d.low$line
 
 ##     high entropy
 high <- sort(o[length(o)-0:100])[1:10]   # sort so don't have to read too many lines to find
 entropy.fit[high]
-d.high <- data.frame(line=train[high], truth=(y.all[train])[high], choice=choice[high], Fit=round(Fits[high,],2)); 
+d.high <- data.frame(line=train[high], truth=(y.all[train])[high], choice=choice[high], Fit=round(Fits[high,],2));
 d.high
 d.high$line
 
@@ -198,7 +200,7 @@ colnames(Y) <- prepositions
 
 Fits <- as.matrix(Fits)
 
-i <- sample(1:nrow(Y),10000); 
+i <- sample(1:nrow(Y),10000);
 
 ##     example [ slope(OF) != 1 ???]
 prp <- 'with'; fprp <- paste0("fit_",prp)
@@ -236,16 +238,16 @@ mean(y-xp)  # much closer to 0
 ##     soft limits for 0/1
 hi <- function(x){1+0.5*(1-exp(1-x))}
 lo <- function(x){.5*(exp(x)-1)}
- 
+
 plot(hi,xlim=c(1,4))
 plot(lo,xlim=c(-3,0))
 
 fit <- function(x){
-	if(x<0) return(lo(x)) 
+	if(x<0) return(lo(x))
 	if(x>1) return(hi(x))
 	x
 }
-x <- seq(-3,4, length.out=100)	
+x <- seq(-3,4, length.out=100)
 y <- mapply(fit,x)
 plot(x,y, xlim=c(-3,4))
 abline(a=0,b=1,lty=2,col='gray', main="Soft Limits on Predictions")
@@ -272,7 +274,7 @@ choice <- apply(newFits[,1:length(prepositions)],1,which.max)
 newFits.tab <- table(y.all[train],choice)
 colnames(newFits.tab) <- prepositions
 
-newFits.tab <- newFits.tab[prepositions,]; 
+newFits.tab <- newFits.tab[prepositions,];
 
 round(newFits.tab/50000,2)
 
@@ -297,7 +299,7 @@ save(Fits, newFits, Y, file="fits.Rdata")
 
 ## regular calibration is now much better with coef 1
 prp <- 'of'; fprp <- paste0("fit.",prp)
-i <- sample(1:nrow(Y),10000); 
+i <- sample(1:nrow(Y),10000);
 plot(Y[i,prp] ~ newFits[i,fprp])
 summary( regr <-  lm(Y[,prp] ~ newFits[,fprp]) )
 abline (a=0,b=1,col='gray',lty=3)
@@ -326,7 +328,7 @@ summary(regr)
 x <- fitted(regr); y <- Data[,"Y"]
 plot(x, y)
 abline(a=0,b=1,col='gray',lty=3)
-lines(smooth.spline(x,y,df=5), col='red') 
+lines(smooth.spline(x,y,df=5), col='red')
 
 ##     spline from data matches smoothed residuals
 x <- fitted(regr); y <- residuals(regr)
@@ -340,7 +342,7 @@ summary(regr.s)
 x <- fitted(regr.s); y <- Data[,"Y"]
 plot(x, y)
 abline(a=0,b=1,col='gray',lty=3)
-lines(smooth.spline(x,y,df=5), col='red') 
+lines(smooth.spline(x,y,df=5), col='red')
 
 
 ## ------------------------------------------------  early test, debugging code  -------------------------------------
