@@ -32,26 +32,36 @@ sort(table( y.all[ test ] ), decreasing=T)
 ##     check one model
 ## one model: get the fitted values from a model
 ##
-Data.with<- read.delim(paste0(pathb,"with/model_data.txt"))
+Data.with<- read.delim(paste0(pathb,"with.before/model_data.txt"))
 names(Data.with); dim(Data.with)
 
-##  try to fit the model
+##   try to fit the model  (for with.after)
 Data.with <- Data.with[,-(1:3)];           # remove the fit
 spline    <- Data.with[,825]
 Data.with <- Data.with[,-825]              # remove spline
 regr <- lm(Y_with ~ . , data = Data.with)
-
-y <- Data.with$Y_with
 x <- fitted(regr)
-i <- sample(1:99999,20000)
-plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
-summary( regr <-  lm(y ~ x) ); mean(y); mean(x)
+
+##   for with.before
+n.est <- 300000
+y <- Data.with$Y_with[1:n.est]; x <- Data.with$Fit[1:n.est]
+i <- sample(1:length(y),20000)
+plot(y ~ x, xlab="Model Fit, Y^", ylab="Y")
+summary( regr <-  lm(y ~ x) ); 
+mean(y); mean(x)
 abline (a=0,b=1,col='gray',lty=3)
-ss.fit <- smooth.spline(y[i] ~ x[i], df=7)
-lines(ss.fit,col='red')  # very nicely calibrated at this point
+ss.fit <- smooth.spline(y ~ x, df=7)
+lines(ss.fit,col='red')  
+
+##     is spline calibrated?
+x2 <- fitted(ss.fit)
+plot(x2[i],y[i])
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit2 <- smooth.spline(y ~ x2, df=7)
+lines(ss.fit,col='red')  
 
 ##     what happens if smooth residual
-resid <- residuals(regr)
+resid <- Data.with$Residual
 plot(x[i],resid[i], xlab="Model Fit Y^", ylab="Residuals")
 ss.res <- smooth.spline(resid ~ x, df=7)
 fit.res <- fitted(ss.res)
