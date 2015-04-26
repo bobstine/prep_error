@@ -45,7 +45,6 @@ x <- Data.with$Fit
 i <- sample(1:n.est,20000)
 plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
 summary( regr <-  lm(y ~ x) ); mean(y); mean(x)   # not happy that means do not match (soft-limits)
->>>>>>> 3a5c69885880fbf71e5d6c44e61f2c923f1bb43d
 abline (a=0,b=1,col='gray',lty=3)
 ss.fit <- smooth.spline(y ~ x, df=7)
 lines(ss.fit,col='red')
