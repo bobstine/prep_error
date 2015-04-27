@@ -214,7 +214,7 @@ auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manuall
 prepositions = of in for to on with
 nExamples = 50000
 
-auctionOptions = --rounds=40000 --alpha=2 --protection=3 --cal_gap=25 --debug=2
+auctionOptions = --rounds=80000 --alpha=2 --protection=3 --cal_gap=25 --debug=0
 textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
 
 inDir = auction_data
