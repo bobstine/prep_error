@@ -1,8 +1,6 @@
-## --- use auction_progress.R to plot the auction history
-
-
 ## --- Analysis of auction results for multinomial classification:
 ##     Which words are being confused?
+## --- use auction_progress.R to plot the auction history
 
 patha <- "~/C/projects/prep_error/saved_results/n1000_e200p_r25k_poly_fast/"
 
