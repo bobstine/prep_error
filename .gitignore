@@ -9,8 +9,9 @@ embed_random_auction
 embed_auction
 filter_sentences
 filtered_stream
-recode_data
 nlp_auction
+recode_data
+transpose_rect
 prep_events.txt
 prepositions.txt
 vocabulary.txt
