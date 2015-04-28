@@ -4,7 +4,7 @@
 
 patha <- "~/C/projects/prep_error/saved_results/n1000_e200p_r25k_poly_fast/"
 
-patha <- "~/C/projects/prep_error/auction_temp/"
+patha <- "~/C/projects/prep_error/saved_results/80k_rounds/"
 pathb <- patha
 
 ##     while running the path is as follows
@@ -12,7 +12,7 @@ pathb <- patha
 # pathb <- "~/C/projects/prep_error/auction_temp/"
 
 ##     get data to local machine
-# cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
+cmd <- paste0("scp -r hilbert:",patha," ~/C/projects/prep_error/saved_results/")
 # system(cmd)
 
 
@@ -163,6 +163,7 @@ entropy <- function(p) {
 
 entropy.fit <- apply(Fits,1,entropy)
 
+#     bin entropy results
 q   <- quantile(entropy.fit,(1:99)/100)
 bin <- 1+rowSums(outer(entropy.fit,q,'>'))
 
@@ -172,7 +173,7 @@ pct <- tapply(correct,bin,mean)
 plot((1:100)/100,pct, xlab="Entropy Percentile",ylab="Pct Correct",
       main="Accuracy drops as entropy of predictions increases")
 
-##     low entropy (easy to predict; run from C makefile)
+##     low entropy examples (easy to predict; run from C makefile)
 o <- order(entropy.fit, decreasing=FALSE)
 
 low <- sort(o[1:100])[1:10]   # sort so don't have to read too many lines to find
@@ -259,11 +260,16 @@ colnames(Y) <- prepositions
 Fits <- as.matrix(Fits)
 
 ##     example
-summary( regr <-  lm(Y[,1] ~ Fits) )
+summary( regr <-  lm(Y[,1] ~ Fits[,1]) )
+summary( regr <-  lm(Y[,1] ~ Fits    ) )
+
+##     add interaction
+cFits <- Fits
+summary( regr <-  lm(Y[,1] ~ Fits * cFits  ) )
 
 ##     all of them
 newFits <-  matrix(NA, nrow=nrow(Y), ncol=ncol(Y))
-for(i in 1:6) { newFits[,i] <-  fitted(lm(Y[,i] ~ Fits)) }
+for(i in 1:6) { newFits[,i] <-  fitted(lm(Y[,i] ~ Fits * cFits)) }
 colnames(newFits) <- paste0("fit.",prepositions)
 
 ##     which prep gets largest probability
@@ -277,25 +283,9 @@ round(newFits.tab/50000,2)
 
 save(Fits, newFits, Y, file="fits.Rdata")
 
-## was like this before calibrating
-         of   in  for   to   on with
-  of   0.88 0.04 0.03 0.01 0.02 0.02
-  in   0.19 0.56 0.06 0.04 0.08 0.07
-  for  0.24 0.06 0.50 0.06 0.06 0.09
-  to   0.12 0.05 0.06 0.66 0.05 0.06
-  on   0.19 0.06 0.07 0.05 0.55 0.07
-  with 0.16 0.05 0.06 0.05 0.05 0.64
-## became this
-         of   in  for   to   on with
-  of   0.76 0.06 0.07 0.02 0.05 0.04
-  in   0.06 0.61 0.09 0.05 0.11 0.08
-  for  0.08 0.08 0.59 0.07 0.08 0.10
-  to   0.03 0.06 0.08 0.68 0.07 0.07
-  on   0.05 0.08 0.10 0.05 0.64 0.08
-  with 0.04 0.06 0.09 0.06 0.07 0.68
 
 ## regular calibration is now much better with coef 1
-prp <- 'of'; fprp <- paste0("fit.",prp)
+prp <- 'with'; fprp <- paste0("fit.",prp)
 i <- sample(1:nrow(Y),10000);
 plot(Y[i,prp] ~ newFits[i,fprp])
 summary( regr <-  lm(Y[,prp] ~ newFits[,fprp]) )
