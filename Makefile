@@ -31,6 +31,9 @@ all: auction_mult
 filter_sentences: filter_sentences.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
+randomize_eigenwords: randomize_eigenwords.o
+	$(GCC) $^ $(LDLIBS) -o  $@
+
 convert: convert.o
 	$(GCC) $^ $(LDLIBS) -o  $@
 
@@ -62,9 +65,8 @@ filtered_stream: filtered_stream.o
 ###########################################################################
 #
 #	Prepositions
-#
-#		- first convert into column form
-#               - probably want to edit tags.txt to pick subset to keep
+#		- first convert into rectangular column form
+#               - edit tags.txt to pick subset of terms to keep
 #
 ###########################################################################
 
@@ -120,23 +122,18 @@ eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 	rm -f $@
 	gunzip -c $< > $@
 
+eigenwords.rand: eigenwords.en randomize_eigenwords 
+	cat $< | ./randomize_eigenwords --dim=200 > $@
+
 eigenwords.dean: $(HOME)/data/text/eigenwords/output_200_PHC.txt
 	ln -s $< $@
 
 nEigenDim    = 200   # careful! need to manually sync
 nEigenCutDim = 201
-eigenwords.txt: eigenwords.en
+eigenwords.txt: eigenwords.rand
 	cut -f1-$(nEigenCutDim) -d' ' $< > $@
 
-# --- auction data	streaming file layout of data from rectangle format, with words embedded
-#      decide here if want to downcase letters or leave in mixed cases (downcase option to embed_auction)
-#      not fast, but not glacial either (20 mins for 1M cases with +-3 ewords and 200 dims)
-
-hidden-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
-	rm -rf $@
-	mkdir auction_data
-	./embed_auction --eigen_file=$(eigenwords) --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
-	chmod +x $@/index.sh
+# --- auction data	directory with streaming data files for features from rectangle
 
 auction_data: transpose_rect rectangle_data.tsv vocabulary.txt $(eigenwords)
 	rm -rf $@
@@ -144,12 +141,78 @@ auction_data: transpose_rect rectangle_data.tsv vocabulary.txt $(eigenwords)
 	./transpose_rect -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
 
+#     old version that split out before reading into auction
+#     not fast, but not glacial either (20 mins for 1M cases with +-3 ewords and 200 dims)
+hide1-auction_data: embed_auction rectangle_data.tsv vocabulary.txt $(eigenwords)
+	rm -rf $@
+	mkdir auction_data
+	./embed_auction --eigen_file=$(eigenwords) --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
+	chmod +x $@/index.sh
+
 #     random version
-hide-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
+hide2-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 	rm -rf $@
 	mkdir $@
 	./embed_random_auction --eigen_dim $(nEigenDim) --vocab=vocabulary.txt  -o $@ < rectangle_data.tsv
 	chmod +x $@/index.sh
+
+#---------------------------------------------------------------------------------------------------------------
+#
+# --- multinomial auction
+#
+#---------------------------------------------------------------------------------------------------------------
+#	recode_data puts several Ys with common selection indicator (which may force balanced estimation) into multDir
+#	prepositions = of in for to on with that at as from by
+
+# only big 6, train iwth nExamples of each 
+# prepositions = of in for to on with
+prepositions = of
+nExamples = 50000
+
+auctionOptions = --rounds=2000 --alpha=2 --protection=3 --cal_gap=25 --debug=1
+textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
+
+inPath = auction_data/
+outPath = auction_temp/
+
+#	build Y_all.txt and multinomial indicators Y_xxx
+$(inPath)Y_all.txt: encode_response prepositions.txt
+	./encode_response --input_dir=$(inPath) --output_dir=$(inPath) --word_list=prepositions_6.txt
+
+$(inPath)cv_indicator: $(inPath)Y_all.txt ../../tools/random_indicator
+	cat $(inPath)_n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
+
+$(inPath)X.sh: $(inPath)index.sh
+	rm -rf $@
+	sed "3d" $(inPath)index.sh > $@
+	chmod +x $@
+
+$(outPath)%: eigenwords.txt $(inPath)Y_all.txt $(inPath)X.sh $(inPath)cv_indicator # target that runs auction for each prep (% symbol)
+	mkdir -p $(outPath)
+	mkdir -p $@
+	mkfifo $(inPath)Xpipe_$*
+	(cd $(inPath); ./X.sh > Xpipe_$*) &
+	./nlp_auction -Y$(inPath)Y_$* -C$(inPath)cv_indicator -X$(inPath)Xpipe_$* $(textOptions) $(auctionOptions) --output_x=0 --output_path=$@
+	rm -rf $(inPath)Xpipe_$*
+
+run_auction: $(addprefix $(outPath),$(prepositions))                      # target that runs all prep auctions
+	cp $(inPath)cv_indicator $(outPath)cv_indicator
+	cp $(inPath)Y_all.txt $(outPath)Y_all.txt
+
+# use the following to avoid the pipe when debugging (and comment last line in outPath)
+# 	rm -rf $(inPath)Xpipe_$*          # avoid pipe (and comment last line)
+#	cd $(inPath); ./X.sh > Xpipe_$*
+
+###########################################################################
+# ---  extract sentences with hi/low entropy  (find in R in auction_analysis.R)
+
+entropy_low.txt: entropy_low.lnum    # -P for perl option to parse \t as tab
+	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
+
+entropy_high.txt: entropy_high.lnum 
+	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
+
+###########################################################################
 
 #---------------------------------------------------------------------------------------------------------------
 #
@@ -201,65 +264,6 @@ auction_test: filtered_stream # $(outTestDir)/X  # build binomial first *manuall
 	./filtered_stream --cat_file $(outTestDir)/catFile --selector $(outTestDir)/_selector --data_dir $(inTestDir) > $(outTestDir)/Xpipe &
 	$(theAuction) -Y$(outTestDir)/Y -C$(outTestDir)/_cv_indicator -X$(outTestDir)/Xpipe -o $@ -r 150 -a 2 -p 3 --calibration_gap=20 --debug=2 --output_x=50
 
-
-#---------------------------------------------------------------------------------------------------------------
-#
-# --- multinomial auction
-#
-#---------------------------------------------------------------------------------------------------------------
-#	recode_data puts several Ys with common selection indicator (which may force balanced estimation) into multDir
-#	prepositions = of in for to on with that at as from by
-
-# only big 6, nExamples of each
-prepositions = of in for to on with
-nExamples = 50000
-
-auctionOptions = --rounds=80000 --alpha=2 --protection=3 --cal_gap=25 --debug=0
-textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
-
-inDir = auction_data
-multDir = $(inDir)
-resultsPath = auction_temp/
-
-
-#	build Y_all.txt and multinomial indicators Y_xxx
-$(multDir)/Y_all.txt: encode_response prepositions.txt
-	./encode_response --input_dir=$(inDir) --output_dir=$(multDir) --word_list=prepositions_6.txt
-
-$(multDir)/cv_indicator: $(multDir)/Y_all.txt ../../tools/random_indicator
-	cat $(multDir)/_n_obs | ../../tools/random_indicator --header --choose=$(nExamples) --balance=$< > $@
-
-$(multDir)/X.sh: $(inDir)/index.sh
-	rm -rf $@
-	sed "3d" $(inDir)/index.sh > $@
-	chmod +x $@
-
-$(resultsPath)%: eigenwords.txt $(multDir)/Y_all.txt $(multDir)/X.sh $(multDir)/cv_indicator # target that runs auction for each prep (% symbol)
-	mkdir -p $(resultsPath)
-	mkdir -p $@
-	mkfifo $(multDir)/Xpipe_$*
-	(cd $(multDir); ./X.sh > Xpipe_$*) &
-	./nlp_auction -Y$(multDir)/Y_$* -C$(multDir)/cv_indicator -X$(multDir)/Xpipe_$* $(textOptions) $(auctionOptions) --output_x=0 --output_path=$@
-	rm -rf $(multDir)/Xpipe_$*
-
-run_auction: $(addprefix $(resultsPath),$(prepositions))                      # target that runs all prep auctions
-	cp $(multDir)/cv_indicator $(resultsPath)cv_indicator
-	cp $(multDir)/Y_all.txt $(resultsPath)Y_all.txt
-
-# use the following to avoid the pipe when debugging (and comment last line in resultsPath)
-# 	rm -rf $(multDir)/Xpipe_$*          # avoid pipe (and comment last line)
-#	cd $(multDir); ./X.sh > Xpipe_$*
-
-###########################################################################
-# ---  extract sentences with hi/low entropy  (find in R in auction_analysis.R)
-
-entropy_low.txt: entropy_low.lnum    # -P for perl option to parse \t as tab
-	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
-
-entropy_high.txt: entropy_high.lnum 
-	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
-
-###########################################################################
 ###########################################################################
 
 include ~/C/rules_for_makefiles

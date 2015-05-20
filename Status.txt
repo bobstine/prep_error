@@ -1,0 +1,19 @@
+Ideas to pursue:
+
+	Use 5 words to either side
+
+	Replace Paramveer's eigenwords by something other
+
+	More than 200 eigendimensions
+
+
+Bugs?
+	Square, powers of indicators (or were these parts of something else)
+
+Comments:
+
+	Value of using real eigenwords...
+		Context: __ dim, __ rounds
+		Fit with	Random
+				Dean
+				Paramveer

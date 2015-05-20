@@ -9,6 +9,7 @@ embed_random_auction
 embed_auction
 filter_sentences
 filtered_stream
+randomize_eigenwords
 nlp_auction
 recode_data
 transpose_rect

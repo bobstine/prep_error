@@ -1,8 +1,8 @@
 /*
-  Writes out sentences read from stdio to stdout.
+  Writes sentences read from stdin to stdout.
 
-  Reads until has k sentences in each of the input prepositions.  Filtering
-  preposition assumed to be first word read on each line.
+  Reads until has k sentences with each of the input prepositions.  Filtering
+  preposition assumed to be first word found on each line.
   
 */
 
