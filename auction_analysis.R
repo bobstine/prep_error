@@ -5,7 +5,8 @@
 patha <- "~/C/projects/prep_error/saved_results/n1000_e200p_r25k_poly_fast/"
 
 patha <- "~/C/projects/prep_error/saved_results/80k_rounds/"
-pathb <- patha
+
+patha <- "~/C/projects/prep_error/auction_temp/"
 
 ##     while running the path is as follows
 # patha <- "~/C/projects/prep_error/auction_data/multinomial/"
