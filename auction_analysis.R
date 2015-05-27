@@ -4,7 +4,11 @@
 
 patha <- "~/C/projects/prep_error/saved_results/n1000_e200p_r25k_poly_fast/"
 
-patha <- "~/C/projects/prep_error/saved_results/80k_rounds/"
+## --- the 40k test series
+patha <- "~/C/projects/prep_error/saved_results/40k/"          # control, with pos tags, parse results
+patha <- "~/C/projects/prep_error/saved_results/40k_no_pos/"   # use parse position words
+
+patha <- "~/C/projects/prep_error/saved_results/40k_pre_post/" # 5 to left, 5 to right only
 
 patha <- "~/C/projects/prep_error/auction_temp/"
 
@@ -100,7 +104,7 @@ n.train <- length(train)
 n.test  <- length(test)
 Y.test <- Y.train <-  Preds <- Fits  <- NULL
 for(i in 1:length(prepositions)) {
-    data <- read.delim(paste0(pathb,prepositions[i],"/model_data.txt"))
+    data <- read.delim(paste0(patha,prepositions[i],"/model_data.txt"))
     prp <- paste0("Y_",prepositions[i])
     Fits[[i]]   <- data[1:n.train,"Fit"]
     Y.train[[i]]<- data[1:n.train,prp]

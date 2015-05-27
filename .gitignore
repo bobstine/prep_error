@@ -2,6 +2,7 @@
 *.dd
 .Rhistory
 build_y_and_selector
+calc_weights
 convert
 encode_response
 embed_auction

@@ -1,8 +1,7 @@
 /*
-  Writes sentences read from stdin to stdout.
+  Converts input probabilities read from stdin to weights for stdout
 
-  Reads until has k sentences with each of the input prepositions.  Filtering
-  preposition assumed to be first word found on each line.
+  Input parameter sigma determines the exponential weighting to use
   
 */
 
@@ -29,9 +28,7 @@ const std::string tag = "FLTS: ";
 /////
 
 void
-parse_arguments(int argc, char** argv,
-		size_t& nExamples,
-		string& wordListFileName);
+parse_arguments(int argc, char** argv, float& sigma);
 
 /////   
 
@@ -82,23 +79,19 @@ int main(int argc, char** argv)
 
 //     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments       
 void
-parse_arguments(int argc, char** argv,
-		size_t& nExamples,
-		std::string& wordListFileName)
+parse_arguments(int argc, char** argv, float &sigma)
 {
   static struct option long_options[] = {
-    {"n"       ,  required_argument, 0, 'n'},
-    {"wordlist",  required_argument, 0, 'w'},
+    {"sigma"   ,  required_argument, 0, 's'}
     {0, 0, 0, 0}                             // terminator
   };
   int key;
   int option_index = 0;
-  while (-1 !=(key = getopt_long (argc, argv, "n:w:", long_options, &option_index))) // colon means has argument
+  while (-1 !=(key = getopt_long (argc, argv, "s:", long_options, &option_index))) // colon means has argument
   {
     switch (key)
     {
-    case 'n' :  { nExamples        = read_utils::lexical_cast<size_t>(optarg) ; break;   }
-    case 'w' :  { wordListFileName = optarg;                                    break;   }
+    case 's' :  { sigma        = read_utils::lexical_cast<float>(optarg) ; break;   }
     default:
       {
 	std::cout << "PARSE: Option not recognized; returning.\n";

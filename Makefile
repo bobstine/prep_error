@@ -1,4 +1,3 @@
-
 include ~/C/c_flags
 
 ###########################################################################
@@ -27,6 +26,9 @@ cleanup:
 .PHONY: all test
 
 all: auction_mult
+
+calc_weights: calc_weights.o
+	$(GCC) $^ $(LDLIBS) -o  $@
 
 filter_sentences: filter_sentences.o
 	$(GCC) $^ $(LDLIBS) -o  $@
@@ -125,17 +127,17 @@ eigenwords.en: ~/data/text/eigenwords/eigenwords.300k.200.en.gz
 eigenwords.rand: eigenwords.en randomize_eigenwords 
 	cat $< | ./randomize_eigenwords --dim=200 > $@
 
-eigenwords.dean: $(HOME)/data/text/eigenwords/output_200_PHC.txt
-	ln -s $< $@
+eigenwords.dean: $(HOME)/data/text/eigenwords/output_200_PHC.txt  # replace tab with space
+	sed -e "s/[\t]\+/ /g" $< > $@ 
 
 nEigenDim    = 200   # careful! need to manually sync
 nEigenCutDim = 201
-eigenwords.txt: eigenwords.rand
+eigenwords.txt: eigenwords.en
 	cut -f1-$(nEigenCutDim) -d' ' $< > $@
 
 # --- auction data	directory with streaming data files for features from rectangle
 
-auction_data: transpose_rect rectangle_data.tsv vocabulary.txt $(eigenwords)
+auction_data: transpose_rect rectangle_data.tsv vocabulary.txt eigenwords.txt
 	rm -rf $@
 	mkdir $@
 	./transpose_rect -o $@ < rectangle_data.tsv
@@ -165,15 +167,23 @@ hide2-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, train iwth nExamples of each 
-# prepositions = of in for to on with
-prepositions = of
+prepositions = of in for to on with
+# prepositions = of
 nExamples = 50000
 
-auctionOptions = --rounds=2000 --alpha=2 --protection=3 --cal_gap=25 --debug=1
+auctionOptions = --rounds=40000 --alpha=2 --protection=3 --cal_gap=25 --debug=0
 textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
 
 inPath = auction_data/
 outPath = auction_temp/
+
+#       join most-recent model predictions in common file  HERE
+$(outPath)fit_%.txt: 
+	cut -f2 $(outPath)$*/model_data.txt | tail -n +2 | cat "fit_$*" - > $@
+
+$(outPath)fits_all.txt: $(addsuffix .txt,$(addprefix $(outPath)fit_,$(prepositions)))
+	paste $^ > $@
+
 
 #	build Y_all.txt and multinomial indicators Y_xxx
 $(inPath)Y_all.txt: encode_response prepositions.txt
@@ -204,7 +214,7 @@ run_auction: $(addprefix $(outPath),$(prepositions))                      # targ
 #	cd $(inPath); ./X.sh > Xpipe_$*
 
 ###########################################################################
-# ---  extract sentences with hi/low entropy  (find in R in auction_analysis.R)
+# ---  extract sentences with hi/low entropy  (find in R in auction_analysis
 
 entropy_low.txt: entropy_low.lnum    # -P for perl option to parse \t as tab
 	gunzip -c ~/data/joel/subset5M.prepfeats.gz | grep -P '^(for|in|of|on|to|with)\t' | ~/C/tools/get_lines -n -l $< > $@
