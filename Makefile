@@ -166,24 +166,32 @@ hide2-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 #	recode_data puts several Ys with common selection indicator (which may force balanced estimation) into multDir
 #	prepositions = of in for to on with that at as from by
 
-# only big 6, train iwth nExamples of each 
+# only big 6, train with nExamples of each  (*same* words in prepositions_6.txt, same order)
 prepositions = of in for to on with
 # prepositions = of
 nExamples = 50000
 
-auctionOptions = --rounds=40000 --alpha=2 --protection=3 --cal_gap=25 --debug=0
+auctionOptions = --rounds=1000 --alpha=2 --protection=3 --cal_gap=25 --debug=0
 textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
 
 inPath = auction_data/
 outPath = auction_temp/
 
-#       join most-recent model predictions in common file  HERE
+#       join most-recent model predictions in common file in order of prepositions
+#       then convert these into weights that are put back into data area
+#       note: building one set of weights builds them all, so
+#             make auction_data/W_for.txt
+#       builds weights for all of the prepositions
+
 $(outPath)fit_%.txt: 
-	cut -f2 $(outPath)$*/model_data.txt | tail -n +2 | cat "fit_$*" - > $@
+	cut -f2 $(outPath)$*/model_data.txt | tail -n +2 > $@
 
 $(outPath)fits_all.txt: $(addsuffix .txt,$(addprefix $(outPath)fit_,$(prepositions)))
 	paste $^ > $@
+	rm $(outPath)fit_*.txt
 
+$(inPath)W_%.txt: $(outPath)fits_all.txt
+	cat $< | ./calc_weights --sigma=10 --word_list=prepositions_6.txt --output_dir=auction_data
 
 #	build Y_all.txt and multinomial indicators Y_xxx
 $(inPath)Y_all.txt: encode_response prepositions.txt

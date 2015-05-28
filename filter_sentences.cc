@@ -28,7 +28,7 @@ const std::string tag = "FLTS: ";
 /////
 
 void
-parse_arguments(int argc, char** argv, float& sigma);
+parse_arguments(int argc, char** argv, size_t &nExamples, string &wordFileName);
 
 /////   
 
@@ -79,19 +79,21 @@ int main(int argc, char** argv)
 
 //     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments     parse_arguments       
 void
-parse_arguments(int argc, char** argv, float &sigma)
+parse_arguments(int argc, char** argv, size_t&nExamples, string &wordFileName)
 {
   static struct option long_options[] = {
-    {"sigma"   ,  required_argument, 0, 's'}
+    {"n"    ,  required_argument, 0, 'n'},
+    {"words",  required_argument, 0, 'w'},
     {0, 0, 0, 0}                             // terminator
   };
   int key;
   int option_index = 0;
-  while (-1 !=(key = getopt_long (argc, argv, "s:", long_options, &option_index))) // colon means has argument
+  while (-1 !=(key = getopt_long (argc, argv, "n:w:", long_options, &option_index))) // colon means has argument
   {
     switch (key)
     {
-    case 's' :  { sigma        = read_utils::lexical_cast<float>(optarg) ; break;   }
+    case 'n' :  { nExamples        = read_utils::lexical_cast<size_t>(optarg) ; break;   }
+    case 'w' :  { wordFileName     =  optarg                                  ; break;   }
     default:
       {
 	std::cout << "PARSE: Option not recognized; returning.\n";
