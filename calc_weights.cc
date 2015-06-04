@@ -58,13 +58,13 @@ int main(int argc, char** argv)
   // open collection of output files, one for each named 'W_prep.txt'
   std::vector<std::ofstream *> outStreams;
   for (string p:prepositions)
-  { string name = outputDir + "/W_" + p + ".txt";
+  { string name = outputDir + "/W_" + p;
     std::ofstream *pOS = new std::ofstream(name);
     if(!pOS->good())
     { std::cerr << tag << "Could not open output file named `" << name << "' for writing weights; terminating.\n";
       return -1;
     }
-    (*pOS) << "Weights" << std::endl << "role weights" << std::endl;
+    (*pOS) << "Weights" << std::endl << "role=weights" << std::endl;
     outStreams.push_back(pOS);
   }
   // interprets the file as columns related to the input prepositions
@@ -75,9 +75,10 @@ int main(int argc, char** argv)
     float max = 0.0;
     {
       std::istringstream ss(theLine);
-      float x;
-      while(ss >> x)
-      { if (max < x) max = x;
+      while(ss.good())
+      { float x;
+	ss >> x >> std::ws;
+	if (max < x) max = x;
 	probs.push_back(x);
       }
     }

@@ -111,11 +111,11 @@ int main(int argc, char** argv)
 	  }
 	}
       }
-      // write the line, tab delimited
+      // write the line, tab delimited; WR words that are missing flagged as UNK
       std::cout << thePrep;
       for (string tag : tags)
       { string value = tagValues[tag];
-	if(value.size() == 0)
+	if((value.size() == 0) || (value == "UNK"))
 	  std::cout << "\t" << "NA";
 	else
 	  std::cout << "\t" << value;

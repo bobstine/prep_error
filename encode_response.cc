@@ -192,7 +192,7 @@ write_response(std::string word, std::string attributes, std::vector<std::string
   std::ofstream output (outputDir + name);
   output << words.size() << std::endl;   // file starts with length
   output << name << std::endl;           // then name, attributes, data
-  output << attributes << " word0 * word1 " << word << " name " << name << std::endl;
+  output << attributes << " word0=* word1=" << word << " name=" << name << std::endl;
   for(std::string w : words)
   { if (w == word)
       output << "1 ";

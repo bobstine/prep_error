@@ -92,7 +92,7 @@ raw_data_file = subset5M.prepfeats.gz
 
 prep_events.txt: ~/data/joel/$(raw_data_file) filter_sentences
 	echo Building base file 'prep_events.txt' from $(nSentencesEach) for each preposition.
-	gunzip -c $< | ./filter_sentences -n $(nSentencesEach) --wordlist "prepositions_6.txt" > $@
+	gunzip -c $< | ./filter_sentences -n $(nSentencesEach) -w "prepositions_6.txt" > $@
 	wc -l $@
 
 # --- all_tags, tags	stream identifiers, eg POS and WORD.  Only fields tagged as words get embedded
@@ -167,31 +167,15 @@ hide2-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, train with nExamples of each  (*same* words in prepositions_6.txt, same order)
-prepositions = of in for to on with
-# prepositions = of
+# prepositions = of in for to on with
+prepositions = for 
 nExamples = 50000
 
-auctionOptions = --rounds=1000 --alpha=2 --protection=3 --cal_gap=25 --debug=0
+auctionOptions = --rounds=1000 --alpha=2 --protection=3 --cal_gap=50 --debug=5
 textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
 
 inPath = auction_data/
 outPath = auction_temp/
-
-#       join most-recent model predictions in common file in order of prepositions
-#       then convert these into weights that are put back into data area
-#       note: building one set of weights builds them all, so
-#             make auction_data/W_for.txt
-#       builds weights for all of the prepositions
-
-$(outPath)fit_%.txt: 
-	cut -f2 $(outPath)$*/model_data.txt | tail -n +2 > $@
-
-$(outPath)fits_all.txt: $(addsuffix .txt,$(addprefix $(outPath)fit_,$(prepositions)))
-	paste $^ > $@
-	rm $(outPath)fit_*.txt
-
-$(inPath)W_%.txt: $(outPath)fits_all.txt
-	cat $< | ./calc_weights --sigma=10 --word_list=prepositions_6.txt --output_dir=auction_data
 
 #	build Y_all.txt and multinomial indicators Y_xxx
 $(inPath)Y_all.txt: encode_response prepositions.txt
@@ -205,7 +189,7 @@ $(inPath)X.sh: $(inPath)index.sh
 	sed "3d" $(inPath)index.sh > $@
 	chmod +x $@
 
-$(outPath)%: eigenwords.txt $(inPath)Y_all.txt $(inPath)X.sh $(inPath)cv_indicator # target that runs auction for each prep (% symbol)
+$(outPath)prep_%: eigenwords.txt $(inPath)Y_all.txt $(inPath)X.sh $(inPath)cv_indicator # target that runs auction for each prep (% symbol)
 	mkdir -p $(outPath)
 	mkdir -p $@
 	mkfifo $(inPath)Xpipe_$*
@@ -213,13 +197,47 @@ $(outPath)%: eigenwords.txt $(inPath)Y_all.txt $(inPath)X.sh $(inPath)cv_indicat
 	./nlp_auction -Y$(inPath)Y_$* -C$(inPath)cv_indicator -X$(inPath)Xpipe_$* $(textOptions) $(auctionOptions) --output_x=0 --output_path=$@
 	rm -rf $(inPath)Xpipe_$*
 
-run_auction: $(addprefix $(outPath),$(prepositions))                      # target that runs all prep auctions
+run_auction: $(addprefix $(outPath)prep_,$(prepositions))                      # target that runs all prep auctions
 	cp $(inPath)cv_indicator $(outPath)cv_indicator
 	cp $(inPath)Y_all.txt $(outPath)Y_all.txt
 
 # use the following to avoid the pipe when debugging (and comment last line in outPath)
 # 	rm -rf $(inPath)Xpipe_$*          # avoid pipe (and comment last line)
 #	cd $(inPath); ./X.sh > Xpipe_$*
+
+##################################################################################################
+#   weighted models
+##################################################################################################
+#       join most-recent model predictions in common file in order of prepositions
+#       then convert these into weights that are put back into data area
+#       note: building one set of weights builds them all, so
+#             make auction_data/W_for.txt
+#       builds weights for all of the prepositions
+
+$(outPath)fit_%.txt: 
+	cut -f2 $(outPath)prep_$*/model_data.txt | tail -n +2 > $@
+
+$(outPath)fits_all.txt: $(addsuffix .txt,$(addprefix $(outPath)fit_,$(prepositions)))
+	paste $^ > $@
+
+$(inPath)W_%: $(outPath)fits_all.txt calc_weights
+	cat $< | ./calc_weights --sigma=10 --word_list=prepositions_6.txt --output_dir=auction_data    # calc_weights creates targets
+
+$(inPath)YW_%: $(inPath)Y_% $(inPath)W_%
+	cat $^ > $@
+
+$(outPath)wprep_%: $(inPath)YW_%
+	mkdir -p $(outPath)
+	mkdir -p $@
+	mkfifo $(inPath)Xpipe_$*
+	(cd $(inPath); ./X.sh > Xpipe_$*) &
+	./nlp_auction -Y$< -C$(inPath)cv_indicator -X$(inPath)Xpipe_$* $(textOptions) $(auctionOptions) --output_x=0 --output_path=$@
+	rm -rf $(inPath)Xpipe_$*
+
+#   make auction_temp/fits_all.txt  in single thread *before* running
+run_weighted_auction: $(addprefix $(outPath)wprep_,$(prepositions))            # target that runs all *weighted* auctions
+	cp $(inPath)W_*.txt $(outPath)
+
 
 ###########################################################################
 # ---  extract sentences with hi/low entropy  (find in R in auction_analysis

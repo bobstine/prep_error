@@ -103,13 +103,13 @@ prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
 n.test  <- length(test)
 Y.test <- Y.train <-  Preds <- Fits  <- NULL
-for(i in 1:length(prepositions)) {
-    data <- read.delim(paste0(patha,prepositions[i],"/model_data.txt"))
-    prp <- paste0("Y_",prepositions[i])
-    Fits[[i]]   <- data[1:n.train,"Fit"]
-    Y.train[[i]]<- data[1:n.train,prp]
-    Preds[[i]]  <- data[(n.train+1):(n.train+n.test),"Fit"]
-    Y.test[[i]] <- data[(n.train+1):(n.train+n.test),prp]
+for(i in 1:length(prepositions)) { 
+    data <- read.delim(paste0(patha,"prep_",prepositions[i],"/model_data.txt"))
+    i.test <- !(i.train <- data[,"Role"]=="est")
+    Fits[[i]]   <- data[i.train,"Fit"]
+    Y.train[[i]]<- data[i.train,"Y"]
+    Preds[[i]]  <- data[i.test ,"Fit"]
+    Y.test[[i]] <- data[i.test ,"Y"]
 }
 dim( Fits    <- as.data.frame(Fits ) )
 dim(Preds    <- as.data.frame(Preds) )
@@ -153,6 +153,67 @@ round((Preds.tab)/s,2)
 ##         row probs
 s <- colSums(Preds.tab)
 round(t(t(Preds.tab)/s),2)
+
+
+## ----------------------------------------------------------------
+##     fits for weighted models
+## --------------------------------------------------------------
+
+prepositions <- c("of","in","for","to","on","with")
+n.train <- length(train)
+n.test  <- length(test)
+wY.test <- wY.train <-  wPreds <- wFits  <- NULL
+for(i in 1:length(prepositions)) {
+    wdata <- read.delim(paste0(patha,"wprep_",prepositions[i],"/model_data.txt"))
+    i.test <- !(i.train <- wdata[,"Role"]=="est")
+    wFits[[i]]   <- wdata[i.train,"Fit"]
+    wY.train[[i]]<- wdata[i.train,"Y"]
+    wPreds[[i]]  <- wdata[i.test ,"Fit"]
+    wY.test[[i]] <- wdata[i.test ,"Y"]
+}
+
+dim( wFits    <- as.data.frame(wFits ) )
+dim(wPreds    <- as.data.frame(wPreds) )
+dim( wY.train <- as.data.frame( wY.train  ) )
+dim( wY.test  <- as.data.frame( wY.test   ) )
+names(wY.test) <- names(wY.train) <- prepositions
+names(wPreds)  <- names( wFits)   <- paste0("fit_",prepositions)
+
+##     means
+colMeans( wFits); colMeans(wY.train)
+colMeans(wPreds); colMeans(wY.test )
+
+dim(  wY.test   <- as.matrix(  wY.test  ) )
+wY.test <- prepositions[wY.test %*% (1:6)]
+
+##     check that these counts match C++ counts in train and test
+##     have to use the shuffled preds, not y.all for test
+table(y.all[i.train]=="of",0.5< Fits$fit_of)
+table(Y.test=="of  "      ,0.5<Preds$fit_of)
+
+##     which prep gets largest probability
+##        first in training
+choice <- apply(wFits[,1:length(prepositions)],1,which.max)
+wFits.tab <- table(y.all[i.train],choice)
+colnames(wFits.tab) <- prepositions
+wFits.tab <- wFits.tab[prepositions,]      # arrange rows
+round(wFits.tab/50000,2)
+
+##         row probs in train
+s <- colSums(wFits.tab)
+round(t(t(wFits.tab)/s),2)
+
+##         and in test
+choice <- apply(wPreds[,1:length(prepositions)],1,which.max)
+wPreds.tab <- table(wY.test,choice)
+colnames(wPreds.tab) <- prepositions
+wPreds.tab <- wPreds.tab[prepositions,]
+s <- rowSums(wPreds.tab)
+round((wPreds.tab)/s,2)
+
+##         row probs
+s <- colSums(wPreds.tab)
+round(t(t(wPreds.tab)/s),2)
 
 ## -----------------------------------------------------------
 ##     entropy and errors

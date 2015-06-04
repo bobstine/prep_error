@@ -184,7 +184,7 @@ int main(int argc, char** argv)
   {
     std::ofstream file (outputDir + responseName);
     file << responseName << std::endl;
-    file << "role y" << std::endl;
+    file << "role=y" << std::endl;
     file << response << std::endl;
   }
   {
@@ -243,7 +243,7 @@ write_raw_field(std::string fieldName, std::vector<std::string> const& data,
     for(size_t i=0; i<n; ++i)
       if(1==missing[i]) numbers[i] = mean;
   }
-  const string attributes = "role x stream main";
+  const string attributes = "role=x, stream=main";
   write_simple_var(fieldName, attributes, numbers, shellStream, outputDirectory);
   if (0<nMissing)
     write_simple_var(fieldName+"_missing", attributes+" parent "+fieldName, missing, shellStream, outputDirectory);
