@@ -167,11 +167,11 @@ hide2-auction_data: embed_random_auction rectangle_data.tsv vocabulary.txt
 #	prepositions = of in for to on with that at as from by
 
 # only big 6, train with nExamples of each  (*same* words in prepositions_6.txt, same order)
-# prepositions = of in for to on with
-prepositions = for 
+prepositions = of in for to on with
+# prepositions = for 
 nExamples = 50000
 
-auctionOptions = --rounds=1000 --alpha=2 --protection=3 --cal_gap=50 --debug=5
+auctionOptions = --rounds=50000 --alpha=2 --protection=3 --cal_gap=50 --debug=0
 textOptions = -Deigenwords.txt --dict_dim=$(nEigenDim) -Vvocabulary.txt --min_cat_size=2000
 
 inPath = auction_data/
