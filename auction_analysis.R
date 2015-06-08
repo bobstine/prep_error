@@ -39,6 +39,18 @@ sort(table( y.all[ test ] ), decreasing=T)       # frequencies in test set will 
 ## one model: get the fitted values from a model
 ## for comparisons of the six fits, see further below
 ## --------------------------------------------------------------
+
+Data.of <- read.delim("model_data.txt"); dim(Data.of)
+colnames(Data.of)
+
+sum(ii <- Data.of$Role == "est")
+
+plot(Y~Fit, data=Data.of[ii,])
+
+summary(regr <- lm(Y~WL1_Missing+WL3_Missing+WL3_ew0+WL3_ew3+WL3_ew4+WL3_ew5+WL3_ew5+WR3_Missing, data=Data.of[ii,]))
+
+## --------------------------------------------------------------
+
 Data.with<- read.delim(paste0(pathb,"with.before/model_data.txt"))
 names(Data.with); dim(Data.with)
 
