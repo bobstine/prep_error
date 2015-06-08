@@ -212,7 +212,9 @@ run_auction: $(addprefix $(outPath)prep_,$(prepositions))                      #
 #       then convert these into weights that are put back into data area
 #       note: building one set of weights builds them all, so
 #             make auction_data/W_for.txt
-#       builds weights for all of the prepositions
+#       builds weights for all of the prepositions. After check these make sense
+#       then 
+#	      make -j 3 run_weighted_auction
 
 $(outPath)fit_%.txt: 
 	cut -f2 $(outPath)prep_$*/model_data.txt | tail -n +2 > $@
@@ -221,7 +223,7 @@ $(outPath)fits_all.txt: $(addsuffix .txt,$(addprefix $(outPath)fit_,$(prepositio
 	paste $^ > $@
 
 $(inPath)W_%: $(outPath)fits_all.txt calc_weights
-	cat $< | ./calc_weights --sigma=10 --word_list=prepositions_6.txt --output_dir=auction_data    # calc_weights creates targets
+	cat $< | ./calc_weights --sigma=10 --words=prepositions_6.txt --output_dir=auction_data    # calc_weights creates targets
 
 $(inPath)YW_%: $(inPath)Y_% $(inPath)W_%
 	cat $^ > $@

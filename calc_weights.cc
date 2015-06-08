@@ -31,6 +31,17 @@ const std::string tag = "CALW: ";
 void
 parse_arguments(int argc, char** argv, string& wordFileName, float& sigma, string& outputDir);
 
+float
+weight_function(float x)
+{
+  const float minWeight = 0.0625;    // 1- 15*(x-.5)^4
+  if ( x  <= 0.0 ) return minWeight;
+  if (1.0 <=  x  ) return minWeight;
+  float dev = x - 0.5f;
+  float dev2=dev*dev;
+  return 1.0f - (15.0f * dev2 * dev2);
+}
+
 /////   
 
 int main(int argc, char** argv)
@@ -40,7 +51,7 @@ int main(int argc, char** argv)
   float  sigma        = 10;
   string outputDir    = "auction_data";
   parse_arguments(argc, argv, prepFileName, sigma, outputDir);
-  std::clog << "calc_weights --word_list=" << prepFileName << " --sigma=" << sigma << " --output_dir=" << outputDir << std::endl;
+  std::clog << "calc_weights --words=" << prepFileName << " --sigma=" << sigma << " --output_dir=" << outputDir << std::endl;
   // build vector of response prepositions 
   std::vector<string> prepositions;
   {
@@ -86,11 +97,11 @@ int main(int argc, char** argv)
     if (firstLine)
     { firstLine = false;
       for(size_t i=0; i<probs.size(); ++i)
-	(*outStreams[i])         << exp(sigma * (probs[i]-max));
+	(*outStreams[i])         << weight_function(probs[i]);
     }
     else
       for(size_t i=0; i<probs.size(); ++i)
-	(*outStreams[i]) << '\t' << exp(sigma * (probs[i]-max));
+	(*outStreams[i]) << '\t' << weight_function(probs[i]);
   }
   for (size_t i=0; i<outStreams.size(); ++i)
   { (*outStreams[i]) << std::endl;
@@ -107,7 +118,7 @@ parse_arguments(int argc, char** argv, string &wordFileName, float &sigma, strin
   static struct option long_options[] = {
     {"output_dir",  required_argument, 0, 'o'},
     {"sigma"     ,  required_argument, 0, 's'},
-    {"word_list" ,  required_argument, 0, 'w'},
+    {"words"     ,  required_argument, 0, 'w'},
     {0, 0, 0, 0}                             // terminator
   };
   int key;

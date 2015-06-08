@@ -37,7 +37,8 @@ sort(table( y.all[ test ] ), decreasing=T)       # frequencies in test set will 
 ## --------------------------------------------------------------
 ##     check one model
 ## one model: get the fitted values from a model
-##
+## for comparisons of the six fits, see further below
+## --------------------------------------------------------------
 Data.with<- read.delim(paste0(pathb,"with.before/model_data.txt"))
 names(Data.with); dim(Data.with)
 
@@ -96,21 +97,24 @@ plot(y[i] ~ x[i])
 plot(s[i] ~ x[i])
 
 ## ----------------------------------------------------------------
-##     join fits for all models
+##     join fits for all models  (not weighted)
 ## --------------------------------------------------------------
 
 prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
 n.test  <- length(test)
 Y.test <- Y.train <-  Preds <- Fits  <- NULL
-for(i in 1:length(prepositions)) { 
-    data <- read.delim(paste0(patha,"prep_",prepositions[i],"/model_data.txt"))
+
+for(i in 1:length(prepositions)) {
+    filename <- paste0(patha,"prep_",prepositions[i],"/model_data.txt")
+    data <- read.delim(filename, sep='\t', header=T)
     i.test <- !(i.train <- data[,"Role"]=="est")
     Fits[[i]]   <- data[i.train,"Fit"]
     Y.train[[i]]<- data[i.train,"Y"]
     Preds[[i]]  <- data[i.test ,"Fit"]
     Y.test[[i]] <- data[i.test ,"Y"]
 }
+
 dim( Fits    <- as.data.frame(Fits ) )
 dim(Preds    <- as.data.frame(Preds) )
 dim( Y.train <- as.data.frame( Y.train  ) )
@@ -163,8 +167,10 @@ prepositions <- c("of","in","for","to","on","with")
 n.train <- length(train)
 n.test  <- length(test)
 wY.test <- wY.train <-  wPreds <- wFits  <- NULL
+
 for(i in 1:length(prepositions)) {
-    wdata <- read.delim(paste0(patha,"wprep_",prepositions[i],"/model_data.txt"))
+    filename <- paste0(patha,"wprep_",prepositions[i],"/model_data.txt")
+    wdata <- read.delim(filename, header=T, sep='\t')
     i.test <- !(i.train <- wdata[,"Role"]=="est")
     wFits[[i]]   <- wdata[i.train,"Fit"]
     wY.train[[i]]<- wdata[i.train,"Y"]
