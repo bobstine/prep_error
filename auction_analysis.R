@@ -40,14 +40,17 @@ sort(table( y.all[ test ] ), decreasing=T)       # frequencies in test set will 
 ## for comparisons of the six fits, see further below
 ## --------------------------------------------------------------
 
-Data.of <- read.delim("model_data.txt"); dim(Data.of)
+Data.of <- read.delim(paste0(patha,"wprep_of/model_data.txt")); dim(Data.of)
 colnames(Data.of)
 
 sum(ii <- Data.of$Role == "est")
 
 plot(Y~Fit, data=Data.of[ii,])
 
-summary(regr <- lm(Y~WL1_Missing+WL3_Missing+WL3_ew0+WL3_ew3+WL3_ew4+WL3_ew5+WL3_ew5+WR3_Missing, data=Data.of[ii,]))
+summary(regr <- lm(Y~WL1_Missing+WL3_Missing+
+                       WL3_ew0+WL3_ew1+WL3_ew2+WL3_ew3+WL3_ew4+WL3_ew5+WL3_ew6+
+                           WR3_Missing+WR3_ew0,
+                   data=Data.of[ii,], weights=Data.of[ii,"Weights"]))
 
 ## --------------------------------------------------------------
 
