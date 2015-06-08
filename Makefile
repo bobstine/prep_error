@@ -216,8 +216,8 @@ run_auction: $(addprefix $(outPath)prep_,$(prepositions))                      #
 #       then 
 #	      make -j 3 run_weighted_auction
 
-$(outPath)fit_%.txt: 
-	cut -f2 $(outPath)prep_$*/model_data.txt | tail -n +2 > $@
+$(outPath)fit_%.txt: # third column has fitted values
+	cut -f3 $(outPath)prep_$*/model_data.txt | tail -n +2 > $@       
 
 $(outPath)fits_all.txt: $(addsuffix .txt,$(addprefix $(outPath)fit_,$(prepositions)))
 	paste $^ > $@
@@ -238,7 +238,7 @@ $(outPath)wprep_%: $(inPath)YW_%
 
 #   make auction_temp/fits_all.txt  in single thread *before* running
 run_weighted_auction: $(addprefix $(outPath)wprep_,$(prepositions))            # target that runs all *weighted* auctions
-	cp $(inPath)W_*.txt $(outPath)
+	cp $(inPath)W_* $(outPath)
 
 
 ###########################################################################
