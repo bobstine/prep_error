@@ -34,82 +34,6 @@ table( y.all[ train ] )
 
 sort(table( y.all[ test ] ), decreasing=T)       # frequencies in test set will vary
 
-## --------------------------------------------------------------
-##     check one model
-## one model: get the fitted values from a model
-## for comparisons of the six fits, see further below
-## --------------------------------------------------------------
-
-Data.of <- read.delim(paste0(patha,"wprep_of/model_data.txt")); dim(Data.of)
-colnames(Data.of)
-
-sum(ii <- Data.of$Role == "est")
-
-plot(Y~Fit, data=Data.of[ii,])
-
-summary(regr <- lm(Y~WL1_Missing+WL3_Missing+
-                       WL3_ew0+WL3_ew1+WL3_ew2+WL3_ew3+WL3_ew4+WL3_ew5+WL3_ew6+
-                           WR3_Missing+WR3_ew0,
-                   data=Data.of[ii,], weights=Data.of[ii,"Weights"]))
-
-## --------------------------------------------------------------
-
-Data.with<- read.delim(paste0(pathb,"with.before/model_data.txt"))
-names(Data.with); dim(Data.with)
-
-##   smaller data
-n.est <- 300000
-y <- Data.with$Y_with
-x <- Data.with$Fit
-i <- sample(1:n.est,20000)
-plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
-summary( regr <-  lm(y ~ x) ); mean(y); mean(x)   # not happy that means do not match (soft-limits)
-abline (a=0,b=1,col='gray',lty=3)
-ss.fit <- smooth.spline(y ~ x, df=7)
-lines(ss.fit,col='red')
-
-##     is spline calibrated?
-x2 <- fitted(ss.fit)
-plot(x2[i],y[i])
-abline (a=0,b=1,col='gray',lty=3)
-ss.fit2 <- smooth.spline(y ~ x2, df=7)
-lines(ss.fit,col='red')
-
-##     what happens if smooth residual
-resid <- Data.with$Residual
-plot(x[i],resid[i], xlab="Model Fit Y^", ylab="Residuals")
-ss.res <- smooth.spline(resid ~ x, df=7)
-fit.res <- fitted(ss.res)
-lines(ss.res,col='red')
-
-##     shift preds by model fit to residuals
-xp <- x + fit.res
-plot(xp[i],y[i], xlab="Calibrated Fit", ylab="Y")
-abline (a=0,b=1,col='gray',lty=3)
-ss.fit2 <- smooth.spline(xp,y, df=7)
-lines(ss.fit2,col='red')
-mean(y-xp)  # much closer to 0
-
-##     check cases match between internal/external cv indicators
-##     first are in order, validation/test are inverted order
-n.est <- sum(Data.with[,"Role"]=="est")
-table(Data.with[1:n.est,"Y_with"], y.all[train])
-
-n.val <- sum(Data.with[,"Role"]=="val")
-table(Data.with[nrow(Data.with):(n.est+1),"Y_with"], y.all[test])
-
-##     labeling of words; means of fit by word
-table(0.5 < Data.with[1:n.est,"Fit"], y.all[train])
-tapply(Data.with[1:n.est,"Fit"], y.all[train], mean)
-
-table(0.5 < Data.with[(n.est+1):nrow(Data.with),"Fit"], y.all[test])
-tapply(Data.with[nrow(Data.with):(n.est+1),"Fit"], y.all[test], mean)
-
-x <- Data.with[1:n.est,"Fit"]; y <- Data.with[1:n.est,"Y_with"]; s <- Data.with[1:n.est,5]
-
-i <- sample (1:n.est,20000)
-plot(y[i] ~ x[i])
-plot(s[i] ~ x[i])
 
 ## ----------------------------------------------------------------
 ##     join fits for all models  (not weighted)
@@ -235,6 +159,72 @@ round((wPreds.tab)/s,2)
 ##         row probs
 s <- colSums(wPreds.tab)
 round(t(t(wPreds.tab)/s),2)
+
+## --------------------------------------------------------------
+##     check one model
+## one model: get the fitted values from a model
+## for comparisons of the six fits, see further below
+## --------------------------------------------------------------
+
+## --------------------------------------------------------------
+
+Data.with<- read.delim(paste0(pathb,"with.before/model_data.txt"))
+names(Data.with); dim(Data.with)
+
+##   smaller data
+n.est <- 300000
+y <- Data.with$Y_with
+x <- Data.with$Fit
+i <- sample(1:n.est,20000)
+plot(y[i] ~ x[i], xlab="Model Fit, Y^", ylab="Y")
+summary( regr <-  lm(y ~ x) ); mean(y); mean(x)   # not happy that means do not match (soft-limits)
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit <- smooth.spline(y ~ x, df=7)
+lines(ss.fit,col='red')
+
+##     is spline calibrated?
+x2 <- fitted(ss.fit)
+plot(x2[i],y[i])
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit2 <- smooth.spline(y ~ x2, df=7)
+lines(ss.fit,col='red')
+
+##     what happens if smooth residual
+resid <- Data.with$Residual
+plot(x[i],resid[i], xlab="Model Fit Y^", ylab="Residuals")
+ss.res <- smooth.spline(resid ~ x, df=7)
+fit.res <- fitted(ss.res)
+lines(ss.res,col='red')
+
+##     shift preds by model fit to residuals
+xp <- x + fit.res
+plot(xp[i],y[i], xlab="Calibrated Fit", ylab="Y")
+abline (a=0,b=1,col='gray',lty=3)
+ss.fit2 <- smooth.spline(xp,y, df=7)
+lines(ss.fit2,col='red')
+mean(y-xp)  # much closer to 0
+
+##     check cases match between internal/external cv indicators
+##     first are in order, validation/test are inverted order
+n.est <- sum(Data.with[,"Role"]=="est")
+table(Data.with[1:n.est,"Y_with"], y.all[train])
+
+n.val <- sum(Data.with[,"Role"]=="val")
+table(Data.with[nrow(Data.with):(n.est+1),"Y_with"], y.all[test])
+
+##     labeling of words; means of fit by word
+table(0.5 < Data.with[1:n.est,"Fit"], y.all[train])
+tapply(Data.with[1:n.est,"Fit"], y.all[train], mean)
+
+table(0.5 < Data.with[(n.est+1):nrow(Data.with),"Fit"], y.all[test])
+tapply(Data.with[nrow(Data.with):(n.est+1),"Fit"], y.all[test], mean)
+
+x <- Data.with[1:n.est,"Fit"]; y <- Data.with[1:n.est,"Y_with"]; s <- Data.with[1:n.est,5]
+
+i <- sample (1:n.est,20000)
+plot(y[i] ~ x[i])
+plot(s[i] ~ x[i])
+
 
 ## -----------------------------------------------------------
 ##
@@ -562,3 +552,104 @@ lines(smooth.spline(x,y,df=7), col='green')
 ##     play with some cutoffs
 
 table(y,0.25 < x)
+
+
+
+## --------------------------------------------------------------
+## Reproduce the weighted analysis of wprep_of that terminated early
+## after a sudden uptick in the CVSS.  Found that it was adding too
+## many features (assigning very high t with Bennett).
+##    6 Jun 2015
+## --------------------------------------------------------------
+Data.of <- read.delim("saved_results/bennett_model_data.txt")
+
+dim(Data.of);
+
+colnames(Data.of);
+sum(ii <- Data.of$Role == "est")
+
+plot(Y~Fit, data=Data.of[ii,])
+
+## make weighted data, standardize
+wts     <- Data.of$Weight[ii]
+sqrtWts <- sqrt(wts)
+wData <- sqrtWts * as.matrix(Data.of[ii,5:16])
+
+wData <- as.data.frame(wData)
+
+summary(regr <- lm(Y~.,  data=wData))  # close RMSE, but different R2
+
+y <- wData[,"Y"];
+
+## -- const
+const <- sqrtWts; const <- const/sqrt(sum(const*const))  # C norms to SSx=1
+
+summary(r0 <- lm( y ~  const - 1 ))
+
+sum(residuals(r0)^2)
+sum( (y - 96.9521*const)^2 )
+head(residuals(r0))
+
+## -- first
+x1 <- wData[,"WL1_Missing"] ; x1 <- residuals(lm(x1 ~ const-1)); x1 <- x1/sqrt(sum(x1*x1))
+summary(r1 <- lm( y ~ const + x1 -1 ))
+
+## -- second
+x2 <- wData[,"WL3_Missing"] ; x2 <- residuals(lm(x2 ~ const+x1-1)); x2 <- x2/sqrt(sum(x2*x2))
+summary(r2 <- lm( y ~ const + x1 + x2 -1 ))
+
+## -- third
+x3 <- wData[,"WL3_ew0"] ; x3 <- residuals(lm(x3 ~ const+x1+x2-1)); x3 <- x3/sqrt(sum(x3*x3))
+summary( lm( y ~ const + x1 + x2 + x3 -1 ))
+
+## -- 4th
+x4 <- wData[,"WL3_ew1"] ; x4 <- residuals(lm(x4 ~ const+x1+x2+x3-1)); x4 <- x4/sqrt(sum(x4*x4))
+summary( lm( y ~ const + x1 + x2 + x3 + x4 -1 ))
+
+## -- 5th
+x5 <- wData[,"WL3_ew2"] ; x5 <- residuals(lm(x5 ~ const+x1+x2+x3+x4-1)); x5 <- x5/sqrt(sum(x5*x5))
+summary( lm( y ~ const + x1 + x2 + x3 + x4 + x5 -1 ))
+
+## -- 6th
+x6 <- wData[,"WL3_ew3"] ; x6 <- residuals(lm(x6 ~ const+x1+x2+x3+x4+x5-1)); x6 <- x6/sqrt(sum(x6*x6))
+summary( lm( y ~ const + x1+x2+x3+x4+x5+x6 -1 ))
+
+## -- 7th
+x7 <- wData[,"WL3_ew4"] ; x7 <- residuals(lm(x7 ~ const+x1+x2+x3+x4+x5+x6-1)); x7 <- x7/sqrt(sum(x7*x7))
+summary( regr <- lm( y ~ const + x1+x2+x3+x4+x5+x6+x7 -1 ))
+r <- residuals(regr)
+
+## -- 8th  (t is quite low when added but Bennett assigned 2)
+x8 <- wData[,"WL3_ew5"] ; x8 <- residuals(lm(x8 ~ const+x1+x2+x3+x4+x5+x6+x7-1)); x8 <- x8/sqrt(sum(x8*x8))
+
+summary(lm(r~x8))  # weights produce a very wild pattern
+
+qqnorm(sample(r*x8, 25000) )
+
+summary( regr <- lm( y ~ const + x1+x2+x3+x4+x5+x6+x7+x8 -1 ))
+r <- residuals(regr)
+
+## -- 9th
+x9 <- wData[,"WL3_ew6"] ; x9 <- residuals(lm(x9 ~ const+x1+x2+x3+x4+x5+x6+x7+x8-1)); x9 <- x9/sqrt(sum(x9*x9))
+summary( lm( y ~ const + x1+x2+x3+x4+x5+x6+x7+x8+x9 -1 ))
+
+## -- 10th
+x10 <- wData[,"WR3_Missing"] ;
+x10 <- residuals(lm(x10 ~ const+x1+x2+x3+x4+x5+x6+x7+x8+x9-1));
+x10 <- x10/sqrt(sum(x10*x10))
+summary( regr <- lm( y ~ const + x1+x2+x3+x4+x5+x6+x7+x8+x9+x10 -1 ))
+r <- residuals(regr)
+
+## -- 11th     Very large effect size (which led to large CVSS increase)
+x11 <- wData[,"WR3_ew0"] ;
+x11 <- residuals(lm(x11 ~ const+x1+x2+x3+x4+x5+x6+x7+x8+x9+x10-1));
+x11 <- x11/sqrt(sum(x11*x11))
+
+plot(r ~ x11);
+
+summary(lm(r ~ x11))
+
+summary( lm( y ~ const + x1+x2+x3+x4+x5+x6+x7+x8+x9+x10+x11 -1 ))
+
+## --------------------------------------------------------------
+## --------------------------------------------------------------
